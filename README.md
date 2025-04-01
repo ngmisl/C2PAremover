@@ -32,7 +32,7 @@ This metadata is typically embedded in images as XMP (Extensible Metadata Platfo
 
 1. Clone this repository:
 ```
-git clone https://github.com/yourusername/c2paremover.git
+git clone https://github.com/ngmisl/c2paremover.git
 cd c2paremover
 ```
 
