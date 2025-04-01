@@ -7,48 +7,58 @@ import (
 	"testing"
 )
 
+func TestMain(m *testing.M) {
+	// Clean up testdata directory before running tests
+	cleanTestDir()
+	
+	// Run the tests
+	result := m.Run()
+	
+	// Clean up again after tests
+	cleanTestDir()
+	
+	os.Exit(result)
+}
+
+// cleanTestDir removes the testdata directory to prevent accumulation of test files
+func cleanTestDir() {
+	testDir := "testdata"
+	// Remove the entire directory
+	_ = os.RemoveAll(testDir)
+}
+
 // TestCheckC2PA tests the C2PA detection functionality
 func TestCheckC2PA(t *testing.T) {
 	tests := []struct {
 		name     string
-		testFile string
+		testData []byte
 		expected bool
 	}{
 		{
 			name:     "Empty data",
-			testFile: nil,
+			testData: []byte{},
 			expected: false,
 		},
 		{
 			name:     "Non-JPEG data",
-			testFile: []byte("This is not a JPEG file"),
+			testData: []byte("This is not a JPEG file"),
 			expected: false,
 		},
 		{
 			name:     "Minimal JPEG without C2PA",
-			testFile: createMinimalJPEG(false),
+			testData: createMinimalJPEG(false),
 			expected: false,
 		},
 		{
 			name:     "Minimal JPEG with C2PA",
-			testFile: createMinimalJPEG(true),
+			testData: createMinimalJPEG(true),
 			expected: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var data []byte
-			if tc.testFile == nil {
-				data = []byte{}
-			} else if tc.testFile != nil && len(tc.testFile) > 0 && tc.testFile[0] == 0 {
-				// If the first byte is 0, interpret as raw data
-				data = tc.testFile
-			} else {
-				data = tc.testFile
-			}
-
-			result := CheckC2PA(data)
+			result := CheckC2PA(tc.testData)
 			if result != tc.expected {
 				t.Errorf("CheckC2PA() = %v, want %v", result, tc.expected)
 			}
@@ -60,31 +70,31 @@ func TestCheckC2PA(t *testing.T) {
 func TestRemoveC2PA(t *testing.T) {
 	tests := []struct {
 		name          string
-		testFile      []byte
+		testData      []byte
 		shouldChange  bool
 		shouldSucceed bool
 	}{
 		{
 			name:          "Empty data",
-			testFile:      []byte{},
+			testData:      []byte{},
 			shouldChange:  false,
 			shouldSucceed: false,
 		},
 		{
 			name:          "Non-JPEG data",
-			testFile:      []byte("This is not a JPEG file"),
+			testData:      []byte("This is not a JPEG file"),
 			shouldChange:  false,
 			shouldSucceed: false,
 		},
 		{
 			name:          "Minimal JPEG without C2PA",
-			testFile:      createMinimalJPEG(false),
+			testData:      createMinimalJPEG(false),
 			shouldChange:  false,
 			shouldSucceed: true,
 		},
 		{
 			name:          "Minimal JPEG with C2PA",
-			testFile:      createMinimalJPEG(true),
+			testData:      createMinimalJPEG(true),
 			shouldChange:  true,
 			shouldSucceed: true,
 		},
@@ -92,7 +102,7 @@ func TestRemoveC2PA(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			originalData := tc.testFile
+			originalData := tc.testData
 			newData, err := RemoveC2PA(originalData)
 
 			if tc.shouldSucceed && err != nil {

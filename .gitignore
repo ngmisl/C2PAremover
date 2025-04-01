@@ -1,0 +1,19 @@
+# Go build and test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Test data
+testdata/
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# End of https://www.toptal.com/developers/gitignore/api/go

@@ -1,0 +1,875 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+<additional_info>
+
+</additional_info>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+.windsurfrules
+go.mod
+LICENSE
+main_test.go
+main.go
+README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".gitignore">
+# Go build and test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Test data
+testdata/
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# End of https://www.toptal.com/developers/gitignore/api/go
+</file>
+
+<file path=".windsurfrules">
+1. We use go 1.24.1 make sure to use the latest API and updates
+2. We use the latest version of the standard library
+</file>
+
+<file path="go.mod">
+module c2paremover
+
+go 1.24.1
+</file>
+
+<file path="LICENSE">
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any
+means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the
+software to the public domain. We make this dedication for the benefit
+of the public at large and to the detriment of our heirs and
+successors. We intend this dedication to be an overt act of
+relinquishment in perpetuity of all present and future rights to this
+software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org>
+</file>
+
+<file path="main_test.go">
+package main
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	// Clean up testdata directory before running tests
+	cleanTestDir()
+	
+	// Run the tests
+	result := m.Run()
+	
+	// Clean up again after tests
+	cleanTestDir()
+	
+	os.Exit(result)
+}
+
+// cleanTestDir removes the testdata directory to prevent accumulation of test files
+func cleanTestDir() {
+	testDir := "testdata"
+	// Remove the entire directory
+	_ = os.RemoveAll(testDir)
+}
+
+// TestCheckC2PA tests the C2PA detection functionality
+func TestCheckC2PA(t *testing.T) {
+	tests := []struct {
+		name     string
+		testData []byte
+		expected bool
+	}{
+		{
+			name:     "Empty data",
+			testData: []byte{},
+			expected: false,
+		},
+		{
+			name:     "Non-JPEG data",
+			testData: []byte("This is not a JPEG file"),
+			expected: false,
+		},
+		{
+			name:     "Minimal JPEG without C2PA",
+			testData: createMinimalJPEG(false),
+			expected: false,
+		},
+		{
+			name:     "Minimal JPEG with C2PA",
+			testData: createMinimalJPEG(true),
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := CheckC2PA(tc.testData)
+			if result != tc.expected {
+				t.Errorf("CheckC2PA() = %v, want %v", result, tc.expected)
+			}
+		})
+	}
+}
+
+// TestRemoveC2PA tests the C2PA removal functionality
+func TestRemoveC2PA(t *testing.T) {
+	tests := []struct {
+		name          string
+		testData      []byte
+		shouldChange  bool
+		shouldSucceed bool
+	}{
+		{
+			name:          "Empty data",
+			testData:      []byte{},
+			shouldChange:  false,
+			shouldSucceed: false,
+		},
+		{
+			name:          "Non-JPEG data",
+			testData:      []byte("This is not a JPEG file"),
+			shouldChange:  false,
+			shouldSucceed: false,
+		},
+		{
+			name:          "Minimal JPEG without C2PA",
+			testData:      createMinimalJPEG(false),
+			shouldChange:  false,
+			shouldSucceed: true,
+		},
+		{
+			name:          "Minimal JPEG with C2PA",
+			testData:      createMinimalJPEG(true),
+			shouldChange:  true,
+			shouldSucceed: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			originalData := tc.testData
+			newData, err := RemoveC2PA(originalData)
+
+			if tc.shouldSucceed && err != nil {
+				t.Errorf("RemoveC2PA() failed with error: %v", err)
+				return
+			}
+
+			if !tc.shouldSucceed && err == nil {
+				t.Errorf("RemoveC2PA() should have failed but didn't")
+				return
+			}
+
+			if tc.shouldSucceed {
+				if tc.shouldChange && bytes.Equal(originalData, newData) {
+					t.Errorf("RemoveC2PA() didn't change the data when it should have")
+				}
+
+				if !tc.shouldChange && !bytes.Equal(originalData, newData) {
+					t.Errorf("RemoveC2PA() changed the data when it shouldn't have")
+				}
+
+				// If we expected to change the data, verify that the C2PA is removed
+				if tc.shouldChange && CheckC2PA(newData) {
+					t.Errorf("RemoveC2PA() didn't remove C2PA metadata")
+				}
+
+				// If we have valid JPEG data, make sure it still starts with JPEG marker
+				if len(newData) >= 2 {
+					if newData[0] != 0xFF || newData[1] != 0xD8 {
+						t.Errorf("RemoveC2PA() result is not a valid JPEG (doesn't start with SOI marker)")
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestRemoveC2PAIntegration performs integration tests with real files if available
+func TestRemoveC2PAIntegration(t *testing.T) {
+	// Create test directory if it doesn't exist
+	testDir := "testdata"
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	// Try to use existing test files if available
+	matches, err := filepath.Glob(filepath.Join(testDir, "*.jpg"))
+	if err != nil {
+		t.Logf("Error searching for test files: %v", err)
+		matches = []string{}
+	}
+
+	// If we don't have real test files, create mock ones
+	if len(matches) == 0 {
+		t.Log("No test images found, creating mock test files")
+		
+		// Create a mock image without C2PA
+		noC2PAPath := filepath.Join(testDir, "no_c2pa.jpg")
+		if err := os.WriteFile(noC2PAPath, createMinimalJPEG(false), 0644); err != nil {
+			t.Fatalf("Failed to create mock test file: %v", err)
+		}
+		matches = append(matches, noC2PAPath)
+		
+		// Create a mock image with C2PA
+		withC2PAPath := filepath.Join(testDir, "with_c2pa.jpg")
+		if err := os.WriteFile(withC2PAPath, createMinimalJPEG(true), 0644); err != nil {
+			t.Fatalf("Failed to create mock test file: %v", err)
+		}
+		matches = append(matches, withC2PAPath)
+	}
+
+	// Test each image file
+	for _, filePath := range matches {
+		t.Run(filepath.Base(filePath), func(t *testing.T) {
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				t.Fatalf("Failed to read test file %s: %v", filePath, err)
+			}
+
+			// Check if the file has C2PA metadata
+			hasC2PA := CheckC2PA(data)
+			t.Logf("File %s has C2PA: %v", filePath, hasC2PA)
+
+			// Try to remove C2PA metadata
+			newData, err := RemoveC2PA(data)
+			if err != nil {
+				t.Fatalf("RemoveC2PA() failed: %v", err)
+			}
+
+			// Check if C2PA was removed (or was never there)
+			if CheckC2PA(newData) {
+				t.Errorf("C2PA metadata still detected after removal")
+			}
+
+			// Save the cleaned file for inspection
+			cleanedPath := filePath + ".test.cleaned" + filepath.Ext(filePath)
+			if err := os.WriteFile(cleanedPath, newData, 0644); err != nil {
+				t.Fatalf("Failed to write cleaned test file: %v", err)
+			}
+			t.Logf("Cleaned file saved as %s", cleanedPath)
+		})
+	}
+}
+
+// Helper function to create a minimal valid JPEG file for testing
+func createMinimalJPEG(withC2PA bool) []byte {
+	// Start with SOI marker
+	data := []byte{0xFF, 0xD8}
+
+	// Add APP0 (JFIF) marker
+	jfif := []byte{
+		0xFF, 0xE0,                   // APP0 marker
+		0x00, 0x10,                   // Length (16 bytes)
+		0x4A, 0x46, 0x49, 0x46, 0x00, // "JFIF\0"
+		0x01, 0x01,                   // Version 1.1
+		0x00,                         // Units (0 = none)
+		0x00, 0x01, 0x00, 0x01,       // Density (1x1)
+		0x00, 0x00,                   // Thumbnail (none)
+	}
+	data = append(data, jfif...)
+
+	// If withC2PA, add a mock APP1 segment with C2PA content
+	if withC2PA {
+		// Create a simplified XMP data block with C2PA namespace
+		xmp := "http://ns.adobe.com/xap/1.0/ <x:xmpmeta xmlns:x='adobe:ns:meta/'><rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description rdf:about='' xmlns:c2pa='http://c2pa.org/'>C2PA test metadata</rdf:Description></rdf:RDF></x:xmpmeta>"
+		xmpBytes := []byte(xmp)
+		
+		// APP1 header (marker + length)
+		app1Header := []byte{
+			0xFF, 0xE1, // APP1 marker
+			byte((len(xmpBytes) + 2) >> 8), byte((len(xmpBytes) + 2) & 0xFF), // Length including length bytes
+		}
+		
+		data = append(data, app1Header...)
+		data = append(data, xmpBytes...)
+	}
+
+	// Add minimal SOS marker to make it a valid JPEG
+	sos := []byte{
+		0xFF, 0xDA,       // SOS marker
+		0x00, 0x08,       // Length (8 bytes)
+		0x01,             // 1 component
+		0x01, 0x00,       // Component ID and huffman table
+		0x00, 0x3F, 0x00, // Start of spectral, end of spectral, approximation bit
+	}
+	data = append(data, sos...)
+
+	// Add some dummy image data
+	data = append(data, []byte{0x00, 0xFF, 0xD9}...) // Random data + EOI marker
+
+	return data
+}
+</file>
+
+<file path="main.go">
+package main
+
+import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+)
+
+// C2PA metadata markers
+const (
+	C2PA_NAMESPACE    = "http://c2pa.org/"
+	C2PA_MANIFEST_TAG = "c2pa:manifest"
+	C2PA_CLAIM_TAG    = "c2pa:claim"
+)
+
+// JPEG markers
+const (
+	MARKER_SOI  = 0xFFD8 // Start of Image
+	MARKER_APP1 = 0xFFE1 // APP1 marker for XMP/EXIF data
+	MARKER_SOS  = 0xFFDA // Start of Scan
+)
+
+// CheckC2PA checks if an image has C2PA metadata
+func CheckC2PA(data []byte) bool {
+	// First check if this is a JPEG image
+	if len(data) < 2 || data[0] != 0xFF || data[1] != 0xD8 {
+		fmt.Println("Not a valid JPEG file")
+		return false
+	}
+
+	// Check all APP1 segments
+	pos := 2 // Skip SOI marker
+	for pos < len(data)-4 {
+		// Check for marker
+		if data[pos] != 0xFF {
+			pos++
+			continue
+		}
+
+		markerType := data[pos+1]
+		
+		// If we've reached SOS, we're done checking metadata segments
+		if markerType == 0xDA {
+			break
+		}
+		
+		// Check if it's an APP1 segment
+		if markerType == 0xE1 {
+			// Get segment length (includes length bytes but not marker)
+			length := int(binary.BigEndian.Uint16(data[pos+2:pos+4]))
+			if pos+2+length > len(data) {
+				// Invalid length
+				pos += 2
+				continue
+			}
+			
+			segmentData := data[pos+4:pos+2+length]
+			
+			// Check if it's XMP data
+			if bytes.HasPrefix(segmentData, []byte("http://ns.adobe.com/xap/1.0/")) {
+				// Convert to string for easier regex matching
+				xmpString := string(segmentData)
+				
+				// Check for C2PA namespace
+				if strings.Contains(xmpString, C2PA_NAMESPACE) {
+					return true
+				}
+				
+				// Check for C2PA manifest or claim tags
+				if strings.Contains(xmpString, C2PA_MANIFEST_TAG) || 
+				   strings.Contains(xmpString, C2PA_CLAIM_TAG) {
+					return true
+				}
+				
+				// Use regex to check for C2PA related content
+				c2paRegex := regexp.MustCompile(`(?i)c2pa|contentauthenticity|contentcredentials|cai`)
+				if c2paRegex.MatchString(xmpString) {
+					return true
+				}
+			}
+			
+			// Skip to next segment
+			pos += 2 + length
+		} else if markerType >= 0xE0 && markerType <= 0xEF {
+			// Skip other APP segments
+			length := int(binary.BigEndian.Uint16(data[pos+2:pos+4]))
+			pos += 2 + length
+		} else {
+			// Skip other markers
+			pos += 2
+		}
+	}
+
+	// Also check for PNG-specific C2PA metadata
+	if bytes.HasPrefix(data, []byte{0x89, 0x50, 0x4E, 0x47}) {
+		// This is a PNG file, let's look for iTXt chunks with C2PA data
+		if bytes.Contains(data, []byte("C2PA")) || 
+		   bytes.Contains(data, []byte("c2pa")) ||
+		   bytes.Contains(data, []byte("cai:")) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// RemoveC2PA removes C2PA metadata from image
+func RemoveC2PA(data []byte) ([]byte, error) {
+	// First check if this is a JPEG image
+	if len(data) < 2 || data[0] != 0xFF || data[1] != 0xD8 {
+		return nil, fmt.Errorf("not a valid JPEG file")
+	}
+
+	// Try standard library reencoding method first
+	img, format, err := image.Decode(bytes.NewReader(data))
+	if err == nil {
+		// Create a new buffer to store the cleaned image
+		var buf bytes.Buffer
+
+		// Re-encode the image without metadata based on format
+		switch format {
+		case "jpeg":
+			// Use standard JPEG encoder with high quality
+			err = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 95})
+			if err != nil {
+				fmt.Println("Warning: JPEG encoding failed, using fallback method")
+				return removeC2PAFallback(data)
+			}
+		case "png":
+			err = png.Encode(&buf, img)
+			if err != nil {
+				fmt.Println("Warning: PNG encoding failed, using fallback method")
+				return removeC2PAFallback(data)
+			}
+		default:
+			return removeC2PAFallback(data)
+		}
+
+		// Check if C2PA metadata is still present
+		if !CheckC2PA(buf.Bytes()) {
+			return buf.Bytes(), nil
+		}
+		
+		fmt.Println("Warning: C2PA metadata persisted after standard reencoding, using fallback method")
+	} else {
+		fmt.Println("Warning: Image decoding failed, using fallback method")
+	}
+
+	// Fallback to custom JPEG segment parsing if standard reencoding fails or doesn't remove C2PA
+	return removeC2PAFallback(data)
+}
+
+// Fallback method for removing C2PA metadata using custom JPEG segment parsing
+func removeC2PAFallback(data []byte) ([]byte, error) {
+	result := make([]byte, 0, len(data))
+	result = append(result, 0xFF, 0xD8) // SOI marker
+	
+	pos := 2 // Skip SOI marker
+	for pos < len(data)-4 {
+		// Check for marker
+		if data[pos] != 0xFF {
+			pos++
+			continue
+		}
+
+		markerType := data[pos+1]
+		
+		// If we've reached SOS, copy the rest of the file and exit
+		if markerType == 0xDA {
+			result = append(result, data[pos:]...)
+			break
+		}
+		
+		// Check if it's an APP1 segment
+		if markerType == 0xE1 {
+			// Get segment length (includes length bytes but not marker)
+			length := int(binary.BigEndian.Uint16(data[pos+2:pos+4]))
+			if pos+2+length > len(data) {
+				// Invalid length
+				pos += 2
+				continue
+			}
+			
+			segmentData := data[pos+4:pos+2+length]
+			
+			// Check if it's XMP data with C2PA
+			containsC2PA := false
+			if bytes.HasPrefix(segmentData, []byte("http://ns.adobe.com/xap/1.0/")) {
+				xmpString := string(segmentData)
+				
+				// Check for C2PA identifiers
+				if strings.Contains(xmpString, C2PA_NAMESPACE) ||
+				   strings.Contains(xmpString, C2PA_MANIFEST_TAG) || 
+				   strings.Contains(xmpString, C2PA_CLAIM_TAG) {
+					containsC2PA = true
+				}
+				
+				// Also use regex for more comprehensive detection
+				c2paRegex := regexp.MustCompile(`(?i)c2pa|contentauthenticity|contentcredentials|cai`)
+				if c2paRegex.MatchString(xmpString) {
+					containsC2PA = true
+				}
+			}
+			
+			// Only keep segment if it doesn't contain C2PA data
+			if !containsC2PA {
+				result = append(result, data[pos:pos+2+length]...)
+			} else {
+				fmt.Println("Removing C2PA metadata segment")
+			}
+			
+			// Skip to next segment
+			pos += 2 + length
+		} else {
+			// Keep other segments
+			if markerType >= 0xE0 && markerType <= 0xEF {
+				// APP segments
+				length := int(binary.BigEndian.Uint16(data[pos+2:pos+4]))
+				if pos+2+length > len(data) {
+					// Invalid length
+					pos += 2
+					continue
+				}
+				result = append(result, data[pos:pos+2+length]...)
+				pos += 2 + length
+			} else {
+				// Just copy the marker for now
+				result = append(result, data[pos], data[pos+1])
+				pos += 2
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: c2paremover [check|remove] <image_file>")
+		fmt.Println("Examples:")
+		fmt.Println("  c2paremover check image.jpg")
+		fmt.Println("  c2paremover remove image.jpg")
+		fmt.Println("  c2paremover check-dir directory")
+		return
+	}
+
+	mode := os.Args[1]
+
+	if mode == "check-dir" {
+		if len(os.Args) < 3 {
+			fmt.Println("Please specify a directory")
+			return
+		}
+		
+		dirPath := os.Args[2]
+		checkDirectory(dirPath)
+		return
+	}
+
+	if len(os.Args) < 3 {
+		fmt.Println("Please specify an image file")
+		return
+	}
+	
+	filePath := os.Args[2]
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return
+	}
+
+	switch mode {
+	case "check":
+		if CheckC2PA(data) {
+			fmt.Println("⚠️  C2PA metadata detected")
+		} else {
+			fmt.Println("✓ No C2PA metadata found")
+		}
+	case "remove":
+		if !CheckC2PA(data) {
+			fmt.Println("No C2PA metadata found, no changes needed")
+			return
+		}
+		
+		fmt.Println("Removing C2PA metadata...")
+		newData, err := RemoveC2PA(data)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+		
+		if len(newData) == len(data) && bytes.Equal(newData, data) {
+			fmt.Println("No changes made")
+		} else {
+			cleanPath := filePath + ".cleaned" + filepath.Ext(filePath)
+			err = os.WriteFile(cleanPath, newData, 0644)
+			if err != nil {
+				fmt.Println("Error saving file:", err)
+			} else {
+				fmt.Printf("✓ Cleaned file saved as %s (%.1f%% of original size)\n", 
+					cleanPath, float64(len(newData))/float64(len(data))*100)
+				
+				// Verify the cleaned file
+				cleanData, _ := os.ReadFile(cleanPath)
+				if CheckC2PA(cleanData) {
+					fmt.Println("⚠️  Warning: C2PA metadata still detected in cleaned file")
+				} else {
+					fmt.Println("✓ Verification: No C2PA metadata in cleaned file")
+				}
+			}
+		}
+	default:
+		fmt.Println("Invalid mode. Use 'check', 'remove', or 'check-dir'")
+	}
+}
+
+// Check all image files in a directory for C2PA metadata
+func checkDirectory(dirPath string) {
+	files, err := os.ReadDir(dirPath)
+	if err != nil {
+		fmt.Println("Error reading directory:", err)
+		return
+	}
+
+	imagesChecked := 0
+	imagesWithC2PA := 0
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		// Check if it's an image file
+		ext := strings.ToLower(filepath.Ext(file.Name()))
+		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+			continue
+		}
+
+		filePath := filepath.Join(dirPath, file.Name())
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			fmt.Println("Error reading file:", filePath, err)
+			continue
+		}
+
+		imagesChecked++
+		hasC2PA := CheckC2PA(data)
+		if hasC2PA {
+			imagesWithC2PA++
+			fmt.Printf("⚠️  %s: C2PA metadata detected\n", file.Name())
+		} else {
+			fmt.Printf("✓ %s: No C2PA metadata\n", file.Name())
+		}
+	}
+
+	fmt.Printf("\nSummary: Checked %d images, found C2PA metadata in %d images\n", 
+		imagesChecked, imagesWithC2PA)
+}
+</file>
+
+<file path="README.md">
+# C2PA Metadata Checker and Remover
+
+A command-line tool to detect and remove Content Authenticity Initiative (CAI) metadata, also known as C2PA (Coalition for Content Provenance and Authenticity) metadata, from image files.
+
+## What is C2PA Metadata?
+
+C2PA (Coalition for Content Provenance and Authenticity) is a technical standard for providing provenance and history for digital content. While this can be useful for verifying content authenticity, it can also contain identifying information that some users may prefer to remove for privacy reasons.
+
+This metadata is typically embedded in images as XMP (Extensible Metadata Platform) data in JPEG files or in iTXt chunks in PNG files.
+
+## Features
+
+- Detect C2PA metadata in JPEG and PNG files
+- Two-tier removal approach:
+  - Smart mode: Decode and re-encode the image (automatically strips most metadata)
+  - Fallback mode: Custom JPEG segment parsing to precisely target C2PA data
+- Preserve image quality with high-quality encoding (95% quality)
+- Batch check directories of images for C2PA metadata
+- Visual feedback with emoji indicators
+- Size comparison between original and cleaned files
+- Verification of cleaned files to ensure metadata was properly removed
+
+## Installation
+
+### Prerequisites
+
+- Go 1.24.1 or higher
+
+### Building from Source
+
+1. Clone this repository:
+```
+git clone https://github.com/yourusername/c2paremover.git
+cd c2paremover
+```
+
+2. Build the executable:
+```
+go build -o c2paremover
+```
+
+3. Optionally, install it to your system:
+```
+go install
+```
+
+## Usage
+
+### Check a Single Image
+
+```
+./c2paremover check image.jpg
+```
+
+### Remove C2PA from an Image
+
+```
+./c2paremover remove image.jpg
+```
+This will create a new file with the `.cleaned.jpg` extension.
+
+### Check a Directory of Images
+
+```
+./c2paremover check-dir /path/to/image/directory
+```
+
+## Example Output
+
+When checking an image:
+```
+✓ No C2PA metadata found
+```
+or
+```
+⚠️  C2PA metadata detected
+```
+
+When removing metadata:
+```
+Removing C2PA metadata...
+Removing C2PA metadata segment
+✓ Cleaned file saved as image.jpg.cleaned.jpg (92.3% of original size)
+✓ Verification: No C2PA metadata in cleaned file
+```
+
+When checking a directory:
+```
+✓ image1.jpg: No C2PA metadata
+⚠️  image2.jpg: C2PA metadata detected
+⚠️  image3.jpg: C2PA metadata detected
+✓ image4.jpg: No C2PA metadata
+
+Summary: Checked 4 images, found C2PA metadata in 2 images
+```
+
+## How It Works
+
+### Detection Method
+
+The tool checks for C2PA metadata using multiple indicators:
+- C2PA namespace URI (`http://c2pa.org/`)
+- C2PA manifest and claim tags
+- CAI and related keywords
+- Both JPEG APP1 segments and PNG text chunks
+
+### Removal Methods
+
+1. **Smart Mode**: First attempts to decode and re-encode the image using Go's standard image library. This automatically strips most metadata while preserving image quality.
+
+2. **Fallback Mode**: If Smart Mode fails or doesn't remove the C2PA data, the tool switches to a more detailed approach that:
+   - Parses the JPEG file structure segment-by-segment
+   - Identifies APP1 segments containing XMP metadata
+   - Analyzes the content for C2PA markers
+   - Rebuilds the file without the C2PA segments
+
+## License
+
+[License](LICENSE)
+
+## Contributing
+
+Contributions, bug reports, and feature requests are welcome!
+
+Made with love and vibes [Support the Project](https://fourzerofour.fkey.id)
+</file>
+
+</files>
