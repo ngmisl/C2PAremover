@@ -1,3 +1,5 @@
+[![Go](https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml)
+
 # C2PA Metadata Checker and Remover
 
 A command-line tool to detect and remove Content Authenticity Initiative (CAI) metadata, also known as C2PA (Coalition for Content Provenance and Authenticity) metadata, from image files.
