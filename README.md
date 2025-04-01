@@ -116,8 +116,10 @@ The tool checks for C2PA metadata using multiple indicators:
 
 ## License
 
-[MIT License](LICENSE)
+[License](LICENSE)
 
 ## Contributing
 
 Contributions, bug reports, and feature requests are welcome!
+
+Made with love and vibes [Support the Project](https://fourzerofour.fkey.id)
