@@ -1,0 +1,14 @@
+[package]
+name = "metaend/c2paremover"
+version = "0.1.5"
+description = "A WASM module for removing C2PA metadata from images"
+entrypoint = "c2paremover"
+
+[[module]]
+name = "c2paremover"
+source = "./c2paremover.wasm"
+
+[[command]]
+name = "c2paremover"
+module = "c2paremover"
+runner = "wasi"

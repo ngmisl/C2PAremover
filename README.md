@@ -1,124 +1,115 @@
 [![Go](https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml) [![CodeQL](https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql)
 
-# C2PA Metadata Checker and Remover
+# C2PA Metadata Remover
 
-A command-line tool to detect and remove Content Authenticity Initiative (CAI) metadata, also known as C2PA (Coalition for Content Provenance and Authenticity) metadata, from image files.
+A lightweight tool for detecting and removing Content Authenticity Initiative (C2PA) metadata from image files. Available as both a CLI tool and a WebAssembly module.
 
-## What is C2PA Metadata?
+## What is C2PA?
 
-C2PA (Coalition for Content Provenance and Authenticity) is a technical standard for providing provenance and history for digital content. While this can be useful for verifying content authenticity, it can also contain identifying information that some users may prefer to remove for privacy reasons.
-
-This metadata is typically embedded in images as XMP (Extensible Metadata Platform) data in JPEG files or in iTXt chunks in PNG files.
+C2PA (Coalition for Content Provenance and Authenticity) is a metadata standard used to track the origin and edit history of media content. While it serves legitimate purposes in combating misinformation and deepfakes, it also raises privacy concerns as it can contain identifiable information about the device that created an image and its user.
 
 ## Features
 
-- Detect C2PA metadata in JPEG and PNG files
-- Two-tier removal approach:
-  - Smart mode: Decode and re-encode the image (automatically strips most metadata)
-  - Fallback mode: Custom JPEG segment parsing to precisely target C2PA data
-- Preserve image quality with high-quality encoding (95% quality)
-- Batch check directories of images for C2PA metadata
-- Visual feedback with emoji indicators
-- Size comparison between original and cleaned files
-- Verification of cleaned files to ensure metadata was properly removed
+- Detects presence of C2PA metadata in JPEG and PNG files
+- Cleanly removes C2PA metadata while preserving image quality
+- Available in two formats:
+  - Native Go CLI tool
+  - WebAssembly module (via Wasmer)
+- Doesn't require external dependencies
 
 ## Installation
 
-### Prerequisites
+### CLI Tool
 
-- Go 1.24.1 or higher
+#### From Source
 
-### Building from Source
-
-1. Clone this repository:
-```
-git clone https://github.com/yourusername/c2paremover.git
-cd c2paremover
-```
-
-2. Build the executable:
-```
-go build -o c2paremover
+```bash
+# Requires Go 1.24.1 or later
+git clone https://github.com/ngmisl/C2PAremover.git
+cd C2PAremover
+go build -o c2paremover .
 ```
 
-3. Optionally, install it to your system:
-```
-go install
+### WebAssembly Module
+
+```bash
+# Install using Wasmer
+wasmer install metaend/c2paremover
+
+# Or run directly from Wasmer.io registry
+wasmer run metaend/c2paremover@0.1.0
 ```
 
 ## Usage
 
-### Check a Single Image
+### CLI Tool
 
-```
-./c2paremover check image.jpg
-```
+```bash
+# Check and remove C2PA metadata from a single file
+c2paremover input.jpg output.jpg
 
-### Remove C2PA from an Image
+# Process multiple files
+c2paremover input1.jpg output1.jpg input2.png output2.png
 
-```
-./c2paremover remove image.jpg
-```
-This will create a new file with the `.cleaned.jpg` extension.
-
-### Check a Directory of Images
-
-```
-./c2paremover check-dir /path/to/image/directory
+# Check directory (creates cleaned copies with "_clean" suffix)
+c2paremover -d /path/to/directory
 ```
 
-## Example Output
+### WebAssembly Module
 
-When checking an image:
-```
-✓ No C2PA metadata found
-```
-or
-```
-⚠️  C2PA metadata detected
-```
+The WASM module reads from stdin and writes to stdout:
 
-When removing metadata:
-```
-Removing C2PA metadata...
-Removing C2PA metadata segment
-✓ Cleaned file saved as image.jpg.cleaned.jpg (92.3% of original size)
-✓ Verification: No C2PA metadata in cleaned file
+```bash
+# Process a single file
+cat input.jpg | wasmer run c2paremover > cleaned.jpg
+
+# Process Adobe test file with C2PA metadata
+cat adobe-20220124-CAICA.jpg | wasmer run metaend/c2paremover > cleaned.jpg
+
+# Process and chain with other tools
+cat input.jpg | wasmer run c2paremover | convert - -resize 800x600 output.jpg
 ```
 
-When checking a directory:
-```
-✓ image1.jpg: No C2PA metadata
-⚠️  image2.jpg: C2PA metadata detected
-⚠️  image3.jpg: C2PA metadata detected
-✓ image4.jpg: No C2PA metadata
+#### Why Wasmer?
 
-Summary: Checked 4 images, found C2PA metadata in 2 images
+The WebAssembly version offers several advantages:
+
+- **Cross-platform compatibility**: Run the same binary on any OS (Windows, macOS, Linux)
+- **No installation required**: Just use the Wasmer CLI to run directly from the registry
+- **Sandboxed execution**: Enhanced security through WebAssembly's isolation
+- **Fast performance**: Near-native execution speed
+- **Easy distribution**: Share a single link that works everywhere
+- **Seamless pipelines**: Perfect for integration with other command-line tools
+
+## Build Options
+
+### Standard CLI Build
+
+```bash
+go build .
+```
+
+### WebAssembly Build
+
+```bash
+GOOS=wasip1 GOARCH=wasm go build -o c2paremover.wasm -tags=wasmer .
 ```
 
 ## How It Works
 
-### Detection Method
+The tool performs the following operations:
 
-The tool checks for C2PA metadata using multiple indicators:
-- C2PA namespace URI (`http://c2pa.org/`)
-- C2PA manifest and claim tags
-- CAI and related keywords
-- Both JPEG APP1 segments and PNG text chunks
-
-### Removal Methods
-
-1. **Smart Mode**: First attempts to decode and re-encode the image using Go's standard image library. This automatically strips most metadata while preserving image quality.
-
-2. **Fallback Mode**: If Smart Mode fails or doesn't remove the C2PA data, the tool switches to a more detailed approach that:
-   - Parses the JPEG file structure segment-by-segment
-   - Identifies APP1 segments containing XMP metadata
-   - Analyzes the content for C2PA markers
-   - Rebuilds the file without the C2PA segments
+1. Detects the image format (JPEG or PNG)
+2. Parses the file structure to identify C2PA metadata
+   - For JPEG: Checks for APP11 (0xEB) segments and APP1 (XMP) containing C2PA namespaces
+   - For PNG: Checks for caBX chunks and textual metadata containing C2PA references
+3. When removing metadata:
+   - Creates a clean version by re-encoding the decoded image
+   - For JPEGs, uses a fallback approach that selectively copies segments, skipping C2PA-related ones
 
 ## License
 
-[License](LICENSE)
+[MIT License](LICENSE)
 
 ## Contributing
 

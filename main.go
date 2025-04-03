@@ -1,3 +1,5 @@
+//go:build !wasmer
+
 package main
 
 import (
