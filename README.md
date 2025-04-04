@@ -1,4 +1,4 @@
-[![Go](https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml) [![CodeQL](https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql)
+[![Go](https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml) [![CodeQL](https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql) [![Build Farcaster Page](https://github.com/ngmisl/C2PAremover/actions/workflows/gh-frame.yml/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/gh-frame.yml)
 
 # C2PA Metadata Remover
 
