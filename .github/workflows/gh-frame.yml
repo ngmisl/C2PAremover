@@ -1,0 +1,14 @@
+name: Build Farcaster Page
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vrypan/gh-frame@v1.1.10
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
