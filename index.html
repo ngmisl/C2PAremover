@@ -1,140 +1,177 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C2PAremover</title>
-    <meta name="description" content="A command-line tool to detect and remove Content Authenticity Initiative (CAI) metadata, also known as C2PA (Coalition for Content Provenance and Authenticity) metadata, from image files.">
-    <link rel="stylesheet" href="styles.css">
-    <meta property="og:title" content="C2PAremover">
-    <meta property="og:description" content="A command-line tool to detect and remove Content Authenticity Initiative (CAI) metadata, also known as C2PA (Coalition for Content Provenance and Authenticity) metadata, from image files.">
-    <meta property="og:image" content="https://ngmisl.github.io/C2PAremover/og-image.png">
-    <meta property="og:url" content="https://ngmisl.github.io/C2PAremover">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://ngmisl.github.io/C2PAremover/og-image.png">
-    <meta property="fc:frame" content='{"version":"next","imageUrl":"https://ngmisl.github.io/C2PAremover/og-image.png","button":{"title":"Open repository","action":{"type":"launch_frame","url":"https://ngmisl.github.io/C2PAremover","name":"C2PAremover","splashImageUrl":"https://ngmisl.github.io/C2PAremover/splash-image.png","splashBackgroundColor":"#f5f0ec"}}}' />
-    <script type="module">
-        import { sdk } from 'https://esm.sh/@farcaster/frame-sdk'
-        
-        // Call ready when the page is loaded
-        async function rewriteLinks() {
-            const links = document.querySelectorAll("a[href^='http']");
-            for (let link of links) {
-                link.addEventListener("click", (event) => {
-                    event.preventDefault();
-                    sdk.actions.openUrl(link.getAttribute("href"));
-                });
-            }
-        }
-        window.addEventListener('load', async () => {
-            try {
-                await sdk.actions.ready();
-                console.log('Frame is ready');
-                const ctx = await sdk.context;
-                ctx ? await rewriteLinks() : null;
-            } catch (e) {
-                console.error('Failed to initialize frame:', e);
-            }
-        });
-    </script>
-</head>
-<body>
-    <div class="container">
-        <div class="content">
-            <p><a href="https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml"><img src="https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml/badge.svg" alt="Go"></a> <a href="https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql"><img src="https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql/badge.svg" alt="CodeQL"></a> <a href="https://github.com/ngmisl/C2PAremover/actions/workflows/gh-frame.yml"><img src="https://github.com/ngmisl/C2PAremover/actions/workflows/gh-frame.yml/badge.svg" alt="Build Farcaster Page"></a></p>
-<h1>C2PA Metadata Remover</h1>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>C2Paremover</title>
+        <meta name="description" content="A command-line tool to detect and remove Content Authenticity Initiative (CAI) metadata, also known as C2PA (Coalition for Content Provenance and Authenticity) metadata, from image files." />
+
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ngmisl.github.io/C2PAremover" />
+        <meta property="og:title" content="C2Paremover" />
+        <meta property="og:description" content="A command-line tool to detect and remove Content Authenticity Initiative (CAI) metadata, also known as C2PA (Coalition for Content Provenance and Authenticity) metadata, from image files." />
+        <meta property="og:image" content="https://ngmisl.github.io/C2PAremover/og-image.png" />
+
+        <!-- Twitter -->
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://ngmisl.github.io/C2PAremover" />
+        <meta property="twitter:title" content="C2Paremover" />
+        <meta property="twitter:description" content="A command-line tool to detect and remove Content Authenticity Initiative (CAI) metadata, also known as C2PA (Coalition for Content Provenance and Authenticity) metadata, from image files." />
+        <meta property="twitter:image" content="https://ngmisl.github.io/C2PAremover/og-image.png" />
+
+        <!-- Farcaster Frame -->
+        <meta
+            property="fc:frame"
+            content='{"version":"next","imageUrl":"https://ngmisl.github.io/C2PAremover/og-image.png","button":{"title":"View Repository","action":{"type":"launch_frame","url":"https://ngmisl.github.io/C2PAremover","name":"C2Paremover","splashImageUrl":"https://ngmisl.github.io/C2PAremover/splash-image.png","splashBackgroundColor":"#ffffff"}}}'
+        />
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <p><a href="https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml"><img alt="Go" src="https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml/badge.svg" /></a> <a href="https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql"><img alt="CodeQL" src="https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql/badge.svg" /></a> <a href="https://github.com/ngmisl/C2PAremover/actions/workflows/gh-frame.yml"><img alt="Build Farcaster Page" src="https://github.com/ngmisl/C2PAremover/actions/workflows/gh-frame.yml/badge.svg" /></a></p>
+<h1 id="c2pa-metadata-remover">C2PA Metadata Remover</h1>
 <p>A lightweight tool for detecting and removing Content Authenticity Initiative (C2PA) metadata from image files. Available as both a CLI tool and a WebAssembly module.</p>
-<h2>What is C2PA?</h2>
+<h2 id="what-is-c2pa">What is C2PA?</h2>
 <p>C2PA (Coalition for Content Provenance and Authenticity) is a metadata standard used to track the origin and edit history of media content. While it serves legitimate purposes in combating misinformation and deepfakes, it also raises privacy concerns as it can contain identifiable information about the device that created an image and its user.</p>
-<h2>Features</h2>
+<h2 id="features">Features</h2>
 <ul>
 <li>Detects presence of C2PA metadata in JPEG and PNG files</li>
 <li>Cleanly removes C2PA metadata while preserving image quality</li>
-<li>Available in two formats:<ul>
+<li>Available in two formats:</li>
 <li>Native Go CLI tool</li>
 <li>WebAssembly module (via Wasmer)</li>
+<li>Doesn&rsquo;t require external dependencies</li>
 </ul>
-</li>
-<li>Doesn&#39;t require external dependencies</li>
-</ul>
-<h2>Installation</h2>
-<h3>CLI Tool</h3>
-<h4>From Source</h4>
-<pre><code class="language-bash"># Requires Go 1.24.1 or later
-git clone https://github.com/ngmisl/C2PAremover.git
-cd C2PAremover
-go build -o c2paremover .
-</code></pre>
-<h3>WebAssembly Module</h3>
-<pre><code class="language-bash"># Install using Wasmer
-wasmer install metaend/c2paremover
+<h2 id="installation">Installation</h2>
+<h3 id="cli-tool">CLI Tool</h3>
+<h4 id="from-source">From Source</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Requires Go 1.24.1 or later</span>
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/ngmisl/C2PAremover.git
+<span class="nb">cd</span><span class="w"> </span>C2PAremover
+go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>c2paremover<span class="w"> </span>.
+</code></pre></div>
 
-# Or run directly from Wasmer.io registry
-wasmer run metaend/c2paremover@0.1.5
-</code></pre>
-<h2>Usage</h2>
-<h3>CLI Tool</h3>
-<pre><code class="language-bash"># Check and remove C2PA metadata from a single file
-c2paremover input.jpg output.jpg
+<h3 id="webassembly-module">WebAssembly Module</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Install using Wasmer</span>
+wasmer<span class="w"> </span>install<span class="w"> </span>metaend/c2paremover
 
-# Process multiple files
-c2paremover input1.jpg output1.jpg input2.png output2.png
+<span class="c1"># Or run directly from Wasmer.io registry</span>
+wasmer<span class="w"> </span>run<span class="w"> </span>metaend/c2paremover@0.1.5
+</code></pre></div>
 
-# Check directory (creates cleaned copies with &quot;_clean&quot; suffix)
-c2paremover -d /path/to/directory
-</code></pre>
-<h3>WebAssembly Module</h3>
+<h2 id="usage">Usage</h2>
+<h3 id="cli-tool_1">CLI Tool</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Check and remove C2PA metadata from a single file</span>
+c2paremover<span class="w"> </span>input.jpg<span class="w"> </span>output.jpg
+
+<span class="c1"># Process multiple files</span>
+c2paremover<span class="w"> </span>input1.jpg<span class="w"> </span>output1.jpg<span class="w"> </span>input2.png<span class="w"> </span>output2.png
+
+<span class="c1"># Check directory (creates cleaned copies with &quot;_clean&quot; suffix)</span>
+c2paremover<span class="w"> </span>-d<span class="w"> </span>/path/to/directory
+</code></pre></div>
+
+<h3 id="webassembly-module_1">WebAssembly Module</h3>
 <p>The WASM module reads from stdin and writes to stdout:</p>
-<pre><code class="language-bash"># Process a single file
-cat input.jpg | wasmer run c2paremover &gt; cleaned.jpg
+<div class="codehilite"><pre><span></span><code><span class="c1"># Process a single file</span>
+cat<span class="w"> </span>input.jpg<span class="w"> </span><span class="p">|</span><span class="w"> </span>wasmer<span class="w"> </span>run<span class="w"> </span>c2paremover<span class="w"> </span>&gt;<span class="w"> </span>cleaned.jpg
 
-# Process Adobe test file with C2PA metadata
-cat adobe-20220124-CAICA.jpg | wasmer run metaend/c2paremover &gt; cleaned.jpg
+<span class="c1"># Process Adobe test file with C2PA metadata</span>
+cat<span class="w"> </span>adobe-20220124-CAICA.jpg<span class="w"> </span><span class="p">|</span><span class="w"> </span>wasmer<span class="w"> </span>run<span class="w"> </span>metaend/c2paremover<span class="w"> </span>&gt;<span class="w"> </span>cleaned.jpg
 
-# Process and chain with other tools
-cat input.jpg | wasmer run c2paremover | convert - -resize 800x600 output.jpg
-</code></pre>
-<h4>Why Wasmer?</h4>
+<span class="c1"># Process and chain with other tools</span>
+cat<span class="w"> </span>input.jpg<span class="w"> </span><span class="p">|</span><span class="w"> </span>wasmer<span class="w"> </span>run<span class="w"> </span>c2paremover<span class="w"> </span><span class="p">|</span><span class="w"> </span>convert<span class="w"> </span>-<span class="w"> </span>-resize<span class="w"> </span>800x600<span class="w"> </span>output.jpg
+</code></pre></div>
+
+<h4 id="why-wasmer">Why Wasmer?</h4>
 <p>The WebAssembly version offers several advantages:</p>
 <ul>
 <li><strong>Cross-platform compatibility</strong>: Run the same binary on any OS (Windows, macOS, Linux)</li>
 <li><strong>No installation required</strong>: Just use the Wasmer CLI to run directly from the registry</li>
-<li><strong>Sandboxed execution</strong>: Enhanced security through WebAssembly&#39;s isolation</li>
+<li><strong>Sandboxed execution</strong>: Enhanced security through WebAssembly&rsquo;s isolation</li>
 <li><strong>Fast performance</strong>: Near-native execution speed</li>
 <li><strong>Easy distribution</strong>: Share a single link that works everywhere</li>
 <li><strong>Seamless pipelines</strong>: Perfect for integration with other command-line tools</li>
 </ul>
-<h2>Build Options</h2>
-<h3>Standard CLI Build</h3>
-<pre><code class="language-bash">go build .
-</code></pre>
-<h3>WebAssembly Build</h3>
-<pre><code class="language-bash">GOOS=wasip1 GOARCH=wasm go build -o c2paremover.wasm -tags=wasmer .
-</code></pre>
-<h2>How It Works</h2>
+<h2 id="build-options">Build Options</h2>
+<h3 id="standard-cli-build">Standard CLI Build</h3>
+<div class="codehilite"><pre><span></span><code>go<span class="w"> </span>build<span class="w"> </span>.
+</code></pre></div>
+
+<h3 id="webassembly-build">WebAssembly Build</h3>
+<div class="codehilite"><pre><span></span><code><span class="nv">GOOS</span><span class="o">=</span>wasip1<span class="w"> </span><span class="nv">GOARCH</span><span class="o">=</span>wasm<span class="w"> </span>go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>c2paremover.wasm<span class="w"> </span>-tags<span class="o">=</span>wasmer<span class="w"> </span>.
+</code></pre></div>
+
+<h2 id="how-it-works">How It Works</h2>
 <p>The tool performs the following operations:</p>
 <ol>
 <li>Detects the image format (JPEG or PNG)</li>
-<li>Parses the file structure to identify C2PA metadata<ul>
-<li>For JPEG: Checks for APP11 (0xEB) segments and APP1 (XMP) containing C2PA namespaces</li>
-<li>For PNG: Checks for caBX chunks and textual metadata containing C2PA references</li>
-</ul>
-</li>
-<li>When removing metadata:<ul>
-<li>Creates a clean version by re-encoding the decoded image</li>
-<li>For JPEGs, uses a fallback approach that selectively copies segments, skipping C2PA-related ones</li>
-</ul>
-</li>
+<li>Parses the file structure to identify C2PA metadata<br />
+   - For JPEG: Checks for APP11 (0xEB) segments and APP1 (XMP) containing C2PA namespaces<br />
+   - For PNG: Checks for caBX chunks and textual metadata containing C2PA references</li>
+<li>When removing metadata:<br />
+   - Creates a clean version by re-encoding the decoded image<br />
+   - For JPEGs, uses a fallback approach that selectively copies segments, skipping C2PA-related ones</li>
 </ol>
-<h2>License</h2>
+<h2 id="license">License</h2>
 <p><a href="LICENSE">MIT License</a></p>
-<h2>Contributing</h2>
+<h2 id="contributing">Contributing</h2>
 <p>Contributions are welcome! Please feel free to submit a Pull Request.</p>
 
-        </div>
-        <div class="footer">
-            <a href="https://github.com/ngmisl/C2PAremover" class="github-button">View on Github</a>
-        </div>
-    </div>
-</body>
-</html> 
+        <a
+            href="https://github.com/ngmisl/C2PAremover"
+            class="github-button"
+            target="_blank"
+            rel="noopener noreferrer"
+            ><svg
+                height="32"
+                aria-hidden="true"
+                viewBox="0 0 16 16"
+                version="1.1"
+                width="32"
+            >
+                <path
+                    fill-rule="evenodd"
+                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59
+                 .4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49
+                 -2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+                 -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82
+                 .72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07
+                 -1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15
+                 -.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82
+                 .64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04
+                 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82
+                 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73
+                 .54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013
+                 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+                ></path>
+            </svg>
+            View on GitHub
+        </a>
+        <!-- Farcaster Frame SDK -->
+        <script type="module">
+            import { sdk } from "https://esm.sh/@farcaster/frame-sdk";
+
+            // Call ready when the page is loaded
+            async function rewriteLinks() {
+                const links = document.querySelectorAll("a[href^='http']");
+                for (let link of links) {
+                    link.addEventListener("click", (event) => {
+                        event.preventDefault();
+                        sdk.actions.openUrl(link.getAttribute("href"));
+                    });
+                }
+            }
+            window.addEventListener("load", async () => {
+                try {
+                    await sdk.actions.ready();
+                    console.log("Frame is ready");
+                    const ctx = await sdk.context;
+                    ctx ? await rewriteLinks() : null;
+                } catch (e) {
+                    console.error("Failed to initialize frame:", e);
+                }
+            });
+        </script>
+    </body>
+</html>
