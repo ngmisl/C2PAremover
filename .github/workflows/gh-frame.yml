@@ -3,6 +3,15 @@ on:
   push:
     branches:
       - main  # or 'master' or whatever your main branch is
+    paths:
+      - "README.md"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "README.md"
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -10,18 +19,6 @@ jobs:
       contents: write
       pages: write
       id-token: write
-    on:
-      push:
-        branches:
-          - main
-        paths:
-          - "README.md"
-      pull_request:
-        branches:
-          - main
-        paths:
-          - "README.md"
-      workflow_dispatch:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,7 +26,7 @@ jobs:
         uses: vrypan/gh-frame@v2.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}  # Default GitHub token
-          style: dark  #  light/dark/custom
+          style: light  # light/dark/custom
           # Optionally set cname or branch_name if you want:
           # cname: yourdomain.com
           # branch_name: gh-frame
