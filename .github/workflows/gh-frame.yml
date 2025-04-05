@@ -29,7 +29,7 @@ jobs:
         uses: vrypan/gh-frame@v2.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}  # Default GitHub token
-          style: light  #  light/dark/custom
+          style: dark  #  light/dark/custom
           # Optionally set cname or branch_name if you want:
           # cname: yourdomain.com
           # branch_name: gh-frame
