@@ -37,6 +37,7 @@
 <ul>
 <li>Detects presence of C2PA metadata in JPEG and PNG files</li>
 <li>Cleanly removes C2PA metadata while preserving image quality</li>
+<li>Provides robust fallback methods for both JPEG and PNG files</li>
 <li>Available in two formats:</li>
 <li>Native Go CLI tool</li>
 <li>WebAssembly module (via Wasmer)</li>
@@ -45,10 +46,25 @@
 <h2 id="installation">Installation</h2>
 <h3 id="cli-tool">CLI Tool</h3>
 <h4 id="from-source">From Source</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Requires Go 1.24 or later</span>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Requires Go 1.24.2 or later</span>
 git<span class="w"> </span>clone<span class="w"> </span>https://github.com/ngmisl/C2PAremover.git
 <span class="nb">cd</span><span class="w"> </span>C2PAremover
 go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>c2paremover<span class="w"> </span>.
+</code></pre></div>
+
+<h4 id="using-make">Using Make</h4>
+<p>The project includes a Makefile to simplify building:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Build native binary</span>
+make<span class="w"> </span>build
+
+<span class="c1"># Build WebAssembly binary</span>
+make<span class="w"> </span>wasm
+
+<span class="c1"># Build both</span>
+make<span class="w"> </span>all
+
+<span class="c1"># Install to system (requires sudo for /usr/local/bin)</span>
+sudo<span class="w"> </span>make<span class="w"> </span>install
 </code></pre></div>
 
 <h3 id="webassembly-module">WebAssembly Module</h3>
@@ -69,6 +85,9 @@ c2paremover<span class="w"> </span>input1.jpg<span class="w"> </span>output1.jpg
 
 <span class="c1"># Check directory (creates cleaned copies with &quot;_clean&quot; suffix)</span>
 c2paremover<span class="w"> </span>-d<span class="w"> </span>/path/to/directory
+
+<span class="c1"># Check if an image has C2PA metadata without removing it</span>
+c2paremover<span class="w"> </span>check<span class="w"> </span>input.jpg
 </code></pre></div>
 
 <h3 id="webassembly-module_1">WebAssembly Module</h3>
@@ -102,17 +121,34 @@ cat<span class="w"> </span>input.jpg<span class="w"> </span><span class="p">|</s
 <div class="codehilite"><pre><span></span><code><span class="nv">GOOS</span><span class="o">=</span>wasip1<span class="w"> </span><span class="nv">GOARCH</span><span class="o">=</span>wasm<span class="w"> </span>go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>c2paremover.wasm<span class="w"> </span>-tags<span class="o">=</span>wasmer<span class="w"> </span>.
 </code></pre></div>
 
+<h3 id="using-make_1">Using Make</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Build all targets</span>
+make<span class="w"> </span>all
+</code></pre></div>
+
 <h2 id="how-it-works">How It Works</h2>
 <p>The tool performs the following operations:</p>
 <ol>
 <li>Detects the image format (JPEG or PNG)</li>
 <li>Parses the file structure to identify C2PA metadata<br />
    - For JPEG: Checks for APP11 (0xEB) segments and APP1 (XMP) containing C2PA namespaces<br />
-   - For PNG: Checks for caBX chunks and textual metadata containing C2PA references</li>
+   - For PNG: Checks for text chunks (iTXt and tEXt) containing C2PA references</li>
 <li>When removing metadata:<br />
-   - Creates a clean version by re-encoding the decoded image<br />
-   - For JPEGs, uses a fallback approach that selectively copies segments, skipping C2PA-related ones</li>
+   - Primarily attempts a &ldquo;smart mode&rdquo; by re-encoding the decoded image<br />
+   - If smart mode fails or doesn&rsquo;t fully remove C2PA:<ul>
+<li>For JPEGs: Uses a fallback approach that selectively copies segments, skipping C2PA-related ones</li>
+<li>For PNGs: Uses a fallback that parses and reconstructs the file, omitting C2PA-related chunks</li>
+</ul>
+</li>
 </ol>
+<h2 id="recent-improvements">Recent Improvements</h2>
+<ul>
+<li>Enhanced PNG handling with dedicated fallback removal methods</li>
+<li>Unified detection and removal logic between native and WASM implementations</li>
+<li>Improved error handling and recovery from malformed image data</li>
+<li>Added conditional debug logging for better performance in production</li>
+<li>Build optimizations with Makefile support</li>
+</ul>
 <h2 id="license">License</h2>
 <p><a href="LICENSE">MIT License</a></p>
 <h2 id="contributing">Contributing</h2>
