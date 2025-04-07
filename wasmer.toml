@@ -1,6 +1,6 @@
 [package]
 name = "metaend/c2paremover"
-version = "0.1.5"
+version = "0.1.6"
 description = "A WASM module for removing C2PA metadata from images"
 entrypoint = "c2paremover"
 

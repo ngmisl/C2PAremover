@@ -64,6 +64,211 @@ wasmer.toml
 <files>
 This section contains the contents of the repository's files.
 
+<file path="LICENSE">
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any
+means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the
+software to the public domain. We make this dedication for the benefit
+of the public at large and to the detriment of our heirs and
+successors. We intend this dedication to be an overt act of
+relinquishment in perpetuity of all present and future rights to this
+software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org>
+</file>
+
+<file path="Makefile">
+# Makefile for C2PA Remover
+# Builds both native and WebAssembly versions
+
+# Go compiler
+GO := go
+GOFLAGS := -v
+
+# Project name and binaries
+PROJECT_NAME := c2paremover
+NATIVE_BIN := $(PROJECT_NAME)
+WASM_BIN := $(PROJECT_NAME).wasm
+
+# Build all targets by default
+all: build wasm
+
+# Build native binary
+build:
+	@echo "Building native binary..."
+	$(GO) build $(GOFLAGS) -o $(NATIVE_BIN)
+
+# Build WebAssembly binary
+wasm:
+	@echo "Building WebAssembly binary..."
+	GOOS=wasip1 GOARCH=wasm $(GO) build $(GOFLAGS) -tags=wasmer -o $(WASM_BIN)
+
+# Run tests
+test:
+	@echo "Running tests..."
+	$(GO) test $(GOFLAGS) ./...
+
+# Clean up build artifacts
+clean:
+	@echo "Cleaning up..."
+	rm -f $(NATIVE_BIN) $(WASM_BIN)
+
+# Install the native binary
+install: build
+	@echo "Installing binary..."
+	install -m 755 $(NATIVE_BIN) /usr/local/bin/$(NATIVE_BIN)
+
+.PHONY: all build wasm test clean install
+</file>
+
+<file path="renovate.json">
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ]
+}
+</file>
+
+<file path="wasmer.toml">
+[package]
+name = "metaend/c2paremover"
+version = "0.1.6"
+description = "A WASM module for removing C2PA metadata from images"
+entrypoint = "c2paremover"
+
+[[module]]
+name = "c2paremover"
+source = "./c2paremover.wasm"
+
+[[command]]
+name = "c2paremover"
+module = "c2paremover"
+runner = "wasi"
+</file>
+
+<file path=".windsurfrules">
+1. We use go 1.24.2 make sure to use the latest API and updates
+2. We use the latest version of the standard library
+</file>
+
+<file path="go.mod">
+module c2paremover
+
+go 1.24.2
+</file>
+
+<file path=".gitignore">
+# Go build and test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Project-specific binaries and artifacts
+c2paremover
+*.wasm
+*.cleaned.*
+
+# Test data
+testdata/
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# Wasmer files
+wasmer.toml.bak
+
+# End of https://www.toptal.com/developers/gitignore/api/go
+</file>
+
+<file path="llms.xml">
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+<additional_info>
+
+</additional_info>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  workflows/
+    gh-frame.yml
+    go.yml
+.gitignore
+.windsurfrules
+go.mod
+LICENSE
+llms.xml
+main_test.go
+main_wasmer.go
+main.go
+Makefile
+README.md
+renovate.json
+wasmer.toml
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
 <file path="Makefile">
 # Makefile for C2PA Remover
 # Builds both native and WebAssembly versions
@@ -3786,6 +3991,1716 @@ func createMinimalJPEG(withC2PA bool) []byte {
 	data = append(data, []byte{0x00, 0xFF, 0xD9}...) // Random data + EOI marker
 
 	return data
+}
+</file>
+
+<file path=".github/workflows/go.yml">
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Go
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.2'
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test
+      run: go test -v ./...
+</file>
+
+<file path=".github/workflows/gh-frame.yml">
+name: Build Farcaster-friendly Repo Page
+on:
+  push:
+    branches:
+      - main  # or 'master' or whatever your main branch is
+    paths:
+      - "README.md"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "README.md"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Generate Farcaster-friendly Page
+        uses: vrypan/gh-frame@v2.0.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}  # Default GitHub token
+          style: dark  # light/dark/custom
+          # Optionally set cname or branch_name if you want:
+          # cname: yourdomain.com
+          # branch_name: gh-frame
+</file>
+
+<file path="README.md">
+[![Go](https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/go.yml) [![CodeQL](https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/github-code-scanning/codeql) [![Build Farcaster Page](https://github.com/ngmisl/C2PAremover/actions/workflows/gh-frame.yml/badge.svg)](https://github.com/ngmisl/C2PAremover/actions/workflows/gh-frame.yml)
+
+# C2PA Metadata Remover
+
+A lightweight tool for detecting and removing Content Authenticity Initiative (C2PA) metadata from image files. Available as both a CLI tool and a WebAssembly module.
+
+## What is C2PA?
+
+C2PA (Coalition for Content Provenance and Authenticity) is a metadata standard used to track the origin and edit history of media content. While it serves legitimate purposes in combating misinformation and deepfakes, it also raises privacy concerns as it can contain identifiable information about the device that created an image and its user.
+
+## Features
+
+- Detects presence of C2PA metadata in JPEG and PNG files
+- Cleanly removes C2PA metadata while preserving image quality
+- Provides robust fallback methods for both JPEG and PNG files
+- Available in two formats:
+  - Native Go CLI tool
+  - WebAssembly module (via Wasmer)
+- Doesn't require external dependencies
+
+## Installation
+
+### CLI Tool
+
+#### From Source
+
+```bash
+# Requires Go 1.24.2 or later
+git clone https://github.com/ngmisl/C2PAremover.git
+cd C2PAremover
+go build -o c2paremover .
+```
+
+#### Using Make
+
+The project includes a Makefile to simplify building:
+
+```bash
+# Build native binary
+make build
+
+# Build WebAssembly binary
+make wasm
+
+# Build both
+make all
+
+# Install to system (requires sudo for /usr/local/bin)
+sudo make install
+```
+
+### WebAssembly Module
+
+```bash
+# Install using Wasmer
+wasmer install metaend/c2paremover
+
+# Or run directly from Wasmer.io registry
+wasmer run metaend/c2paremover@0.1.5
+```
+
+## Usage
+
+### CLI Tool
+
+```bash
+# Check and remove C2PA metadata from a single file
+c2paremover input.jpg output.jpg
+
+# Process multiple files
+c2paremover input1.jpg output1.jpg input2.png output2.png
+
+# Check directory (creates cleaned copies with "_clean" suffix)
+c2paremover -d /path/to/directory
+
+# Check if an image has C2PA metadata without removing it
+c2paremover check input.jpg
+```
+
+### WebAssembly Module
+
+The WASM module reads from stdin and writes to stdout:
+
+```bash
+# Process a single file
+cat input.jpg | wasmer run c2paremover > cleaned.jpg
+
+# Process Adobe test file with C2PA metadata
+cat adobe-20220124-CAICA.jpg | wasmer run metaend/c2paremover > cleaned.jpg
+
+# Process and chain with other tools
+cat input.jpg | wasmer run c2paremover | convert - -resize 800x600 output.jpg
+```
+
+#### Why Wasmer?
+
+The WebAssembly version offers several advantages:
+
+- **Cross-platform compatibility**: Run the same binary on any OS (Windows, macOS, Linux)
+- **No installation required**: Just use the Wasmer CLI to run directly from the registry
+- **Sandboxed execution**: Enhanced security through WebAssembly's isolation
+- **Fast performance**: Near-native execution speed
+- **Easy distribution**: Share a single link that works everywhere
+- **Seamless pipelines**: Perfect for integration with other command-line tools
+
+## Build Options
+
+### Standard CLI Build
+
+```bash
+go build .
+```
+
+### WebAssembly Build
+
+```bash
+GOOS=wasip1 GOARCH=wasm go build -o c2paremover.wasm -tags=wasmer .
+```
+
+### Using Make
+
+```bash
+# Build all targets
+make all
+```
+
+## How It Works
+
+The tool performs the following operations:
+
+1. Detects the image format (JPEG or PNG)
+2. Parses the file structure to identify C2PA metadata
+   - For JPEG: Checks for APP11 (0xEB) segments and APP1 (XMP) containing C2PA namespaces
+   - For PNG: Checks for text chunks (iTXt and tEXt) containing C2PA references
+3. When removing metadata:
+   - Primarily attempts a "smart mode" by re-encoding the decoded image
+   - If smart mode fails or doesn't fully remove C2PA:
+     - For JPEGs: Uses a fallback approach that selectively copies segments, skipping C2PA-related ones
+     - For PNGs: Uses a fallback that parses and reconstructs the file, omitting C2PA-related chunks
+
+## Recent Improvements
+
+- Enhanced PNG handling with dedicated fallback removal methods
+- Unified detection and removal logic between native and WASM implementations
+- Improved error handling and recovery from malformed image data
+- Added conditional debug logging for better performance in production
+- Build optimizations with Makefile support
+
+## License
+
+[MIT License](LICENSE)
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+</file>
+
+</files>
+</file>
+
+<file path="main_test.go">
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	// Clean up testdata directory before running tests
+	cleanTestDir()
+	
+	// Run the tests
+	result := m.Run()
+	
+	// Clean up again after tests
+	cleanTestDir()
+	
+	os.Exit(result)
+}
+
+// cleanTestDir removes the testdata directory to prevent accumulation of test files
+func cleanTestDir() {
+	testDir := "testdata"
+	// Remove the entire directory and properly handle errors
+	if err := os.RemoveAll(testDir); err != nil {
+		// In a test helper we can't use t.Fatal, so log the error
+		// This will at least provide visibility into file system issues
+		fmt.Printf("Warning: Failed to clean test directory: %v\n", err)
+	}
+}
+
+// TestCheckC2PA tests the C2PA detection functionality
+func TestCheckC2PA(t *testing.T) {
+	tests := []struct {
+		name     string
+		testData []byte
+		expected bool
+	}{
+		{
+			name:     "Empty data",
+			testData: []byte{},
+			expected: false,
+		},
+		{
+			name:     "Non-JPEG data",
+			testData: []byte("This is not a JPEG file"),
+			expected: false,
+		},
+		{
+			name:     "Minimal JPEG without C2PA",
+			testData: createMinimalJPEG(false),
+			expected: false,
+		},
+		{
+			name:     "Minimal JPEG with C2PA",
+			testData: createMinimalJPEG(true),
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := CheckC2PA(tc.testData)
+			if result != tc.expected {
+				t.Errorf("CheckC2PA() = %v, want %v", result, tc.expected)
+			}
+		})
+	}
+}
+
+// TestRemoveC2PA tests the C2PA removal functionality
+func TestRemoveC2PA(t *testing.T) {
+	tests := []struct {
+		name          string
+		testData      []byte
+		shouldChange  bool
+		shouldSucceed bool
+	}{
+		{
+			name:          "Empty data",
+			testData:      []byte{},
+			shouldChange:  false,
+			shouldSucceed: false,
+		},
+		{
+			name:          "Non-JPEG data",
+			testData:      []byte("This is not a JPEG file"),
+			shouldChange:  false,
+			shouldSucceed: false,
+		},
+		{
+			name:          "Minimal JPEG without C2PA",
+			testData:      createMinimalJPEG(false),
+			shouldChange:  false,
+			shouldSucceed: true,
+		},
+		{
+			name:          "Minimal JPEG with C2PA",
+			testData:      createMinimalJPEG(true),
+			shouldChange:  true,
+			shouldSucceed: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			originalData := tc.testData
+			newData, err := RemoveC2PA(originalData)
+
+			if tc.shouldSucceed && err != nil {
+				t.Errorf("RemoveC2PA() failed with error: %v", err)
+				return
+			}
+
+			if !tc.shouldSucceed && err == nil {
+				t.Errorf("RemoveC2PA() should have failed but didn't")
+				return
+			}
+
+			if tc.shouldSucceed {
+				if tc.shouldChange && bytes.Equal(originalData, newData) {
+					t.Errorf("RemoveC2PA() didn't change the data when it should have")
+				}
+
+				if !tc.shouldChange && !bytes.Equal(originalData, newData) {
+					t.Errorf("RemoveC2PA() changed the data when it shouldn't have")
+				}
+
+				// If we expected to change the data, verify that the C2PA is removed
+				if tc.shouldChange && CheckC2PA(newData) {
+					t.Errorf("RemoveC2PA() didn't remove C2PA metadata")
+				}
+
+				// If we have valid JPEG data, make sure it still starts with JPEG marker
+				if len(newData) >= 2 {
+					if newData[0] != 0xFF || newData[1] != 0xD8 {
+						t.Errorf("RemoveC2PA() result is not a valid JPEG (doesn't start with SOI marker)")
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestRemoveC2PAIntegration performs integration tests with real files if available
+func TestRemoveC2PAIntegration(t *testing.T) {
+	// Create test directory if it doesn't exist
+	testDir := "testdata"
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	// Try to use existing test files if available
+	matches, err := filepath.Glob(filepath.Join(testDir, "*.jpg"))
+	if err != nil {
+		t.Logf("Error searching for test files: %v", err)
+		matches = []string{}
+	}
+
+	// If we don't have real test files, create mock ones
+	if len(matches) == 0 {
+		t.Log("No test images found, creating mock test files")
+		
+		// Create a mock image without C2PA
+		noC2PAPath := filepath.Join(testDir, "no_c2pa.jpg")
+		if err := os.WriteFile(noC2PAPath, createMinimalJPEG(false), 0644); err != nil {
+			t.Fatalf("Failed to create mock test file: %v", err)
+		}
+		matches = append(matches, noC2PAPath)
+		
+		// Create a mock image with C2PA
+		withC2PAPath := filepath.Join(testDir, "with_c2pa.jpg")
+		if err := os.WriteFile(withC2PAPath, createMinimalJPEG(true), 0644); err != nil {
+			t.Fatalf("Failed to create mock test file: %v", err)
+		}
+		matches = append(matches, withC2PAPath)
+	}
+
+	// Test each image file
+	for _, filePath := range matches {
+		t.Run(filepath.Base(filePath), func(t *testing.T) {
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				t.Fatalf("Failed to read test file %s: %v", filePath, err)
+			}
+
+			// Check if the file has C2PA metadata
+			hasC2PA := CheckC2PA(data)
+			t.Logf("File %s has C2PA: %v", filePath, hasC2PA)
+
+			// Try to remove C2PA metadata
+			newData, err := RemoveC2PA(data)
+			if err != nil {
+				t.Fatalf("RemoveC2PA() failed: %v", err)
+			}
+
+			// Check if C2PA was removed (or was never there)
+			if CheckC2PA(newData) {
+				t.Errorf("C2PA metadata still detected after removal")
+			}
+
+			// Save the cleaned file for inspection
+			cleanedPath := filePath + ".test.cleaned" + filepath.Ext(filePath)
+			if err := os.WriteFile(cleanedPath, newData, 0644); err != nil {
+				t.Fatalf("Failed to write cleaned test file: %v", err)
+			}
+			t.Logf("Cleaned file saved as %s", cleanedPath)
+		})
+	}
+}
+
+// Helper function to create a minimal valid JPEG file for testing
+func createMinimalJPEG(withC2PA bool) []byte {
+	// Start with SOI marker
+	data := []byte{0xFF, 0xD8}
+
+	// Add APP0 (JFIF) marker
+	jfif := []byte{
+		0xFF, 0xE0,                   // APP0 marker
+		0x00, 0x10,                   // Length (16 bytes)
+		0x4A, 0x46, 0x49, 0x46, 0x00, // "JFIF\0"
+		0x01, 0x01,                   // Version 1.1
+		0x00,                         // Units (0 = none)
+		0x00, 0x01, 0x00, 0x01,       // Density (1x1)
+		0x00, 0x00,                   // Thumbnail (none)
+	}
+	data = append(data, jfif...)
+
+	// If withC2PA, add a mock APP1 segment with C2PA content
+	if withC2PA {
+		// Create a simplified XMP data block with C2PA namespace
+		xmp := "http://ns.adobe.com/xap/1.0/ <x:xmpmeta xmlns:x='adobe:ns:meta/'><rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description rdf:about='' xmlns:c2pa='http://c2pa.org/'>C2PA test metadata</rdf:Description></rdf:RDF></x:xmpmeta>"
+		xmpBytes := []byte(xmp)
+		
+		// APP1 header (marker + length)
+		app1Header := []byte{
+			0xFF, 0xE1, // APP1 marker
+			byte((len(xmpBytes) + 2) >> 8), byte((len(xmpBytes) + 2) & 0xFF), // Length including length bytes
+		}
+		
+		data = append(data, app1Header...)
+		data = append(data, xmpBytes...)
+	}
+
+	// Add minimal SOS marker to make it a valid JPEG
+	sos := []byte{
+		0xFF, 0xDA,       // SOS marker
+		0x00, 0x08,       // Length (8 bytes)
+		0x01,             // 1 component
+		0x01, 0x00,       // Component ID and huffman table
+		0x00, 0x3F, 0x00, // Start of spectral, end of spectral, approximation bit
+	}
+	data = append(data, sos...)
+
+	// Add some dummy image data
+	data = append(data, []byte{0x00, 0xFF, 0xD9}...) // Random data + EOI marker
+
+	return data
+}
+</file>
+
+<file path="main_wasmer.go">
+//go:build wasmer
+// +build wasmer
+
+// This file is built only when the "wasmer" build tag is specified.
+// For IDE support, you may need to add "-tags=wasmer" to your gopls settings.
+// See: https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags
+
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"io"
+	"os"
+	"strings"
+)
+
+// Constants for C2PA markers and JPEG/PNG format detection
+const (
+	// C2PA metadata markers - matches main.go
+	C2PA_NAMESPACE    = "http://c2pa.org/"
+	C2PA_MANIFEST_TAG = "c2pa:manifest"
+	C2PA_CLAIM_TAG    = "c2pa:claim"
+	
+	// JPEG specific markers - only the second byte, since that's what we store in seg.Marker
+	MARKER_SOI   = 0xD8 // Start of Image (second byte only)
+	MARKER_APP1  = 0xE1 // APP1 marker for XMP/EXIF data
+	MARKER_APP11 = 0xEB // APP11 marker where C2PA also lives
+	MARKER_SOS   = 0xDA // Start of Scan
+	
+	// Debug mode flag - set to false to disable verbose logging in production
+	debugMode = true
+)
+
+// debugLog outputs debug messages only when debugMode is true
+func debugLog(format string, args ...interface{}) {
+	if debugMode {
+		fmt.Fprintf(os.Stderr, format, args...)
+	}
+}
+
+func main() {
+	// Read all data from standard input
+	inputData, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Debug: Print input size and start
+	debugLog("Debug WASM: Received %d bytes from stdin\n", len(inputData))
+	if len(inputData) > 10 {
+		debugLog("Debug WASM: Input starts with: %X\n", inputData[:10])
+	} else if len(inputData) > 0 {
+		debugLog("Debug WASM: Input starts with: %X\n", inputData)
+	}
+
+	if len(inputData) == 0 {
+		fmt.Fprintln(os.Stderr, "Error: No input data received")
+		os.Exit(1)
+	}
+
+	// Check if the input data has C2PA metadata
+	debugLog("Debug WASM: Calling CheckC2PA...\n")
+	hasC2PA := CheckC2PA(inputData)
+	debugLog("Debug WASM: CheckC2PA returned: %v\n", hasC2PA)
+
+	if !hasC2PA {
+		// If no C2PA, output the original data and exit
+		_, err = os.Stdout.Write(inputData)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing original data to output: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintln(os.Stderr, "Input does not contain C2PA metadata.") // This is the message we saw
+		os.Exit(0)
+	}
+
+	// If C2PA is present, attempt to remove it
+	fmt.Fprintln(os.Stderr, "C2PA metadata detected, attempting removal...")
+	cleanedData, err := RemoveC2PA(inputData)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error removing C2PA metadata: %v\n", err)
+		// Output original data on failure
+		_, writeErr := os.Stdout.Write(inputData)
+		if writeErr != nil {
+			fmt.Fprintf(os.Stderr, "Error writing original data after removal failure: %v\n", writeErr)
+		}
+		os.Exit(1)
+	}
+
+	// Write the cleaned data to standard output
+	_, err = os.Stdout.Write(cleanedData)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing cleaned data to output: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Fprintln(os.Stderr, "C2PA metadata removed successfully.")
+	os.Exit(0)
+}
+
+// CheckC2PA checks if an image (JPEG or PNG) has C2PA metadata
+// (Function remains mostly the same, might need minor adjustments if format detection relied on filename)
+func CheckC2PA(data []byte) bool {
+	// Try JPEG first
+	if bytes.HasPrefix(data, []byte{0xFF, 0xD8}) {
+		debugLog("Debug WASM: Detected JPEG prefix")
+		return checkC2PAJPEG(data)
+	}
+	// Try PNG
+	if bytes.HasPrefix(data, []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}) {
+		debugLog("Debug WASM: Detected PNG prefix")
+		return checkC2PAPNG(data)
+	}
+	// Add checks for other formats if needed
+	debugLog("Debug WASM: Unknown format prefix")
+	return false
+}
+
+func checkC2PAJPEG(data []byte) bool {
+	segments := parseJPEG(data)
+	if segments == nil {
+		debugLog("Debug WASM: parseJPEG returned nil")
+		return false
+	}
+	
+	debugLog("Debug WASM: Found %d JPEG segments\n", len(segments))
+	
+	for i, seg := range segments {
+		// Limit excessive logging for large files
+		if i < 10 || i > len(segments)-5 { // Log first 10 and last 5 segments
+            debugLog("Debug WASM: Checking segment %d: Marker=0x%X Length=%d\n", i, seg.Marker, seg.Length)
+        }
+		
+		// Check for APP11 (0xEB) which is where C2PA typically lives in JPEG
+		if seg.Marker == MARKER_APP11 { // APP11 (0xFFEB in the JPEG file)
+			debugLog("Debug WASM: Found C2PA marker (APP11) - this is automatically considered C2PA data")
+			// In the native implementation, ANY APP11 segment is treated as C2PA data without further inspection
+			return true
+		}
+		
+		// Check APP1 (0xE1) for XMP containing C2PA namespace or manifest
+		if seg.Marker == MARKER_APP1 { // APP1 (0xFFE1 in the JPEG file)
+			// Only log check if segment data isn't huge
+			if seg.Length < 1024 {
+				debugLog("Debug WASM: Checking APP1 segment (len %d) for C2PA strings\n", seg.Length)
+			} else {
+				debugLog("Debug WASM: Checking large APP1 segment (len %d) for C2PA strings\n", seg.Length)
+			}
+			
+			// Show the first 100 bytes as hex for debugging
+			if len(seg.Data) > 0 {
+				showBytes := 100
+				if len(seg.Data) < showBytes {
+					showBytes = len(seg.Data)
+				}
+				debugLog("Debug WASM: APP1 data starts with: %X", seg.Data[:showBytes])
+				
+				// Also try to show it as a string for ASCII parts
+				if showBytes > 30 {
+					debugLog("Debug WASM: APP1 data as string: %s", string(seg.Data[:30]))
+				}
+			}
+			
+			// Extended checks for C2PA content
+			if bytes.Contains(seg.Data, []byte(C2PA_NAMESPACE)) || 
+			   bytes.Contains(seg.Data, []byte(C2PA_MANIFEST_TAG)) || 
+			   bytes.Contains(seg.Data, []byte("c2pa")) ||
+			   bytes.Contains(seg.Data, []byte("C2PA")) ||
+			   bytes.Contains(seg.Data, []byte("jumbf")) ||
+			   bytes.Contains(seg.Data, []byte("JUMBF")) {
+				debugLog("Debug WASM: Found C2PA namespace or related strings in APP1")
+				return true
+			}
+		}
+	}
+	
+	debugLog("Debug WASM: No C2PA markers found in JPEG segments")
+	return false
+}
+
+// checkC2PAPNG checks for C2PA in PNG data
+func checkC2PAPNG(data []byte) bool {
+	debugLog("Debug WASM: Checking PNG for C2PA metadata")
+	
+	// Verify PNG signature
+	if !bytes.HasPrefix(data, []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}) {
+		debugLog("Debug WASM: Invalid PNG signature")
+		return false
+	}
+	
+	// Check for C2PA related strings in the PNG data
+	// Look for common C2PA identifiers in iTXt chunks
+	if bytes.Contains(data, []byte("C2PA")) || 
+	   bytes.Contains(data, []byte("c2pa")) ||
+	   bytes.Contains(data, []byte("cai:")) ||
+	   bytes.Contains(data, []byte("contentauthenticity")) ||
+	   bytes.Contains(data, []byte("contentcredentials")) {
+		debugLog("Debug WASM: Found C2PA identifier in PNG data")
+		return true
+	}
+	
+	// Additional checks for PNG iTXt chunks with C2PA data
+	// Search for iTXt chunk signature followed by C2PA keywords
+	chunks := extractPNGChunks(data)
+	for _, chunk := range chunks {
+		if chunk.chunkType == "iTXt" || chunk.chunkType == "tEXt" {
+			chunkData := string(chunk.data)
+			if strings.Contains(chunkData, "c2pa") || 
+			   strings.Contains(chunkData, "C2PA") ||
+			   strings.Contains(chunkData, "contentauthenticity") {
+				debugLog("Debug WASM: Found C2PA in PNG text chunk")
+				return true
+			}
+		}
+	}
+	
+	debugLog("Debug WASM: No C2PA found in PNG")
+	return false
+}
+
+// PNGChunk represents a chunk in a PNG file
+type pngChunk struct {
+	length    uint32
+	chunkType string
+	data      []byte
+	crc       uint32
+}
+
+// extractPNGChunks extracts chunks from PNG data
+func extractPNGChunks(data []byte) []pngChunk {
+	var chunks []pngChunk
+	
+	// Skip the PNG signature (8 bytes)
+	pos := 8
+	
+	for pos+12 <= len(data) { // Minimum chunk size: 4 (length) + 4 (type) + 0 (data) + 4 (CRC)
+		// Read chunk length (4 bytes, big-endian)
+		length := uint32(data[pos])<<24 | uint32(data[pos+1])<<16 | uint32(data[pos+2])<<8 | uint32(data[pos+3])
+		pos += 4
+		
+		// Read chunk type (4 bytes)
+		chunkType := string(data[pos:pos+4])
+		pos += 4
+		
+		// Check if there's enough data for the chunk
+		if pos+int(length)+4 > len(data) {
+			debugLog("Debug WASM: PNG chunk truncated (%s, length %d)\n", chunkType, length)
+			break
+		}
+		
+		// Read chunk data
+		chunkData := data[pos:pos+int(length)]
+		pos += int(length)
+		
+		// Read CRC (4 bytes)
+		crc := uint32(data[pos])<<24 | uint32(data[pos+1])<<16 | uint32(data[pos+2])<<8 | uint32(data[pos+3])
+		pos += 4
+		
+		chunks = append(chunks, pngChunk{
+			length:    length,
+			chunkType: chunkType,
+			data:      chunkData,
+			crc:       crc,
+		})
+		
+		// Break if we've reached the IEND chunk
+		if chunkType == "IEND" {
+			break
+		}
+	}
+	
+	debugLog("Debug WASM: Extracted %d PNG chunks\n", len(chunks))
+	return chunks
+}
+
+// RemoveC2PA attempts to remove C2PA metadata
+func RemoveC2PA(data []byte) ([]byte, error) {
+	debugLog("Debug WASM: Entering RemoveC2PA")
+	format, err := detectImageFormat(data)
+	if err != nil {
+		return nil, fmt.Errorf("unsupported or invalid image format: %v", err)
+	}
+	debugLog("Debug WASM: Detected format: %s\n", format)
+
+	// 1. Smart Mode: Try decoding and re-encoding using standard library
+	debugLog("Debug WASM: Attempting smart mode (decode/re-encode)")
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err == nil {
+		buf := new(bytes.Buffer)
+		switch format {
+		case "jpeg":
+			debugLog("Debug WASM: Smart mode - Encoding JPEG")
+			err = jpeg.Encode(buf, img, &jpeg.Options{Quality: 90}) // Keep decent quality
+		case "png":
+			debugLog("Debug WASM: Smart mode - Encoding PNG")
+			err = png.Encode(buf, img)
+		default:
+			debugLog("Debug WASM: Smart mode - Unsupported format %s for re-encoding\n", format)
+			return nil, fmt.Errorf("re-encoding not supported for format: %s", format)
+		}
+
+		if err == nil {
+			cleanedData := buf.Bytes()
+			debugLog("Debug WASM: Smart mode successful. Verifying removal (%d bytes output)...\n", len(cleanedData))
+			// Optional: Verify removal if needed by checking cleanedData again
+			if !CheckC2PA(cleanedData) {
+				debugLog("Smart mode removal verified successfully.")
+				return cleanedData, nil
+			} else {
+				debugLog("Warning: Smart mode re-encoding did not remove C2PA (verification failed). Trying fallback...")
+			}
+		} else {
+			debugLog("Warning: Smart mode re-encoding failed: %v. Trying fallback...\n", err)
+		}
+	} else {
+		debugLog("Debug WASM: Image decode failed for smart mode: %v. Proceeding to fallback...\n", err)
+	}
+
+	// 2. Fallback Modes for different formats
+	if format == "jpeg" {
+		return removeC2PAFallbackJPEG(data)
+	} else if format == "png" {
+		return removeC2PAFallbackPNG(data)
+	}
+
+	// If no applicable fallback method
+	debugLog("Debug WASM: Failed to remove C2PA (smart mode failed, no fallback for %s)\n", format)
+	return nil, fmt.Errorf("failed to remove C2PA metadata (smart mode failed, no fallback for %s)", format)
+}
+
+// removeC2PAFallbackJPEG removes C2PA metadata from JPEG using segment parsing
+func removeC2PAFallbackJPEG(data []byte) ([]byte, error) {
+	debugLog("Debug WASM: Using fallback JPEG segment removal.")
+	segments := parseJPEG(data)
+	buf := new(bytes.Buffer)
+	_, _ = buf.Write([]byte{0xFF, 0xD8}) // SOI
+
+	removed := false
+	for i, seg := range segments {
+		if seg.Marker == MARKER_APP11 || (seg.Marker == MARKER_APP1 && (bytes.Contains(seg.Data, []byte(C2PA_NAMESPACE)) || bytes.Contains(seg.Data, []byte(C2PA_MANIFEST_TAG)))) {
+			debugLog("Debug WASM: Fallback: Removing segment %d (Marker=0x%X)\n", i, seg.Marker)
+			removed = true
+			continue // Skip writing this segment
+		}
+		// Write segment if not removed
+		_, _ = buf.Write([]byte{0xFF, byte(seg.Marker)}) // Write marker
+		if seg.Length > 0 {                               // Marker length includes the 2 bytes for length itself
+			lenBytes := []byte{byte(seg.Length >> 8), byte(seg.Length & 0xFF)}
+			_, _ = buf.Write(lenBytes) // Write length
+			_, _ = buf.Write(seg.Data) // Write data
+		}
+	}
+
+	// Need to ensure EOI marker is present if it was in the original segments
+	foundEOI := false
+	for _, seg := range segments {
+		if seg.Marker == 0xD9 { // EOI
+			foundEOI = true
+			break
+		}
+	}
+	if foundEOI {
+		_, _ = buf.Write([]byte{0xFF, 0xD9}) // EOI
+		debugLog("Debug WASM: Fallback: Appended EOI marker.")
+	} else {
+         // If original segments didn't have EOI, maybe it's truncated? Add it just in case.
+         // Cautious approach: only add if it was missing in the parsed segments. Many JPEGs omit it.
+        debugLog("Warning: Original JPEG did not contain EOI marker (0xFFD9). Not adding one.")
+    }
+
+	if !removed {
+		debugLog("Warning: Fallback mode did not find specific C2PA markers to remove.")
+		// Return original data if nothing was actually removed by fallback
+        // to avoid unnecessary modification.
+        return data, fmt.Errorf("fallback mode found no C2PA markers to remove")
+	}
+    
+    cleanedData := buf.Bytes()
+	debugLog("Debug WASM: Fallback removal finished (%d bytes output). Verifying...\n", len(cleanedData))
+    // Final verification
+    if CheckC2PA(cleanedData) {
+		 debugLog("Error: Fallback removal failed verification check.")
+         return data, fmt.Errorf("fallback removal failed verification check")
+    }
+	debugLog("Debug WASM: Fallback removal verified.")
+	return cleanedData, nil
+}
+
+// removeC2PAFallbackPNG removes C2PA metadata from PNG by selectively copying non-C2PA chunks
+func removeC2PAFallbackPNG(data []byte) ([]byte, error) {
+	debugLog("Debug WASM: Using fallback PNG chunk removal method")
+	
+	// Extract all PNG chunks
+	chunks := extractPNGChunks(data)
+	if len(chunks) == 0 {
+		return nil, fmt.Errorf("failed to parse PNG chunks")
+	}
+	
+	// Create a new buffer for the cleaned PNG
+	buf := new(bytes.Buffer)
+	
+	// Write PNG signature
+	_, _ = buf.Write([]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A})
+	
+	// Track if we've removed any chunks
+	removed := false
+	
+	// Copy all chunks except those containing C2PA data
+	for i, chunk := range chunks {
+		// Check text chunks for C2PA content
+		isC2PAChunk := false
+		if chunk.chunkType == "iTXt" || chunk.chunkType == "tEXt" {
+			chunkData := string(chunk.data)
+			if strings.Contains(strings.ToLower(chunkData), "c2pa") || 
+			   strings.Contains(strings.ToLower(chunkData), "contentauthenticity") ||
+			   strings.Contains(strings.ToLower(chunkData), "cai:") {
+				debugLog("Debug WASM: Removing C2PA chunk #%d (type: %s)\n", i, chunk.chunkType)
+				isC2PAChunk = true
+				removed = true
+			}
+		}
+		
+		// Skip C2PA chunks
+		if isC2PAChunk {
+			continue
+		}
+		
+		// Write chunk length (4 bytes)
+		lengthBytes := []byte{
+			byte(chunk.length >> 24),
+			byte(chunk.length >> 16),
+			byte(chunk.length >> 8),
+			byte(chunk.length),
+		}
+		_, _ = buf.Write(lengthBytes)
+		
+		// Write chunk type (4 bytes)
+		_, _ = buf.Write([]byte(chunk.chunkType))
+		
+		// Write chunk data
+		_, _ = buf.Write(chunk.data)
+		
+		// Write CRC (4 bytes)
+		crcBytes := []byte{
+			byte(chunk.crc >> 24),
+			byte(chunk.crc >> 16),
+			byte(chunk.crc >> 8),
+			byte(chunk.crc),
+		}
+		_, _ = buf.Write(crcBytes)
+	}
+	
+	if !removed {
+		debugLog("Debug WASM: No C2PA chunks found to remove in PNG")
+		return data, fmt.Errorf("no C2PA chunks found to remove")
+	}
+	
+	cleanedData := buf.Bytes()
+	debugLog("Debug WASM: PNG fallback removal finished (%d bytes). Verifying...\n", len(cleanedData))
+	
+	// Verify removal was successful
+	if CheckC2PA(cleanedData) {
+		debugLog("Error: PNG fallback removal failed verification check")
+		return data, fmt.Errorf("PNG fallback removal failed verification check")
+	}
+	
+	debugLog("Debug WASM: PNG fallback removal verified successfully")
+	return cleanedData, nil
+}
+
+// detectImageFormat detects if data is JPEG or PNG
+// (Function remains the same)
+func detectImageFormat(data []byte) (string, error) {
+	if bytes.HasPrefix(data, []byte{0xFF, 0xD8, 0xFF}) {
+		return "jpeg", nil
+	}
+	if bytes.HasPrefix(data, []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}) {
+		return "png", nil
+	}
+	return "", fmt.Errorf("unknown image format")
+}
+
+// jpegSegment represents a segment in a JPEG file
+// (Struct remains the same)
+type jpegSegment struct {
+	Marker int
+	Length int // Length of the data payload (doesn't include marker or length bytes)
+	Data   []byte
+}
+
+// parseJPEG parses JPEG segments
+func parseJPEG(data []byte) []jpegSegment {
+	var segments []jpegSegment
+	if len(data) < 2 || data[0] != 0xFF || data[1] != 0xD8 { // Check for SOI
+		debugLog("Debug WASM: parseJPEG failed SOI check")
+		return nil
+	}
+	
+	// Add the SOI marker as the first segment
+	segments = append(segments, jpegSegment{Marker: 0xD8, Length: 0})
+	
+	// Start parsing after the SOI marker
+	pos := 2
+	segmentCount := 0
+	
+	for pos < len(data)-1 {
+		// Look for the next 0xFF byte which marks the start of a segment
+		for pos < len(data) && data[pos] != 0xFF {
+			pos++
+		}
+		
+		if pos >= len(data) {
+			break // Reached end of data
+		}
+		
+		// Skip any padding 0xFF bytes (JPEG allows multiple 0xFF as padding)
+		while_ff_loop:
+		for pos < len(data) && data[pos] == 0xFF {
+			pos++
+			if pos >= len(data) {
+				break while_ff_loop
+			}
+		}
+		
+		if pos >= len(data) {
+			break // Reached end of data after padding
+		}
+		
+		// Now pos should be pointing at the marker byte (after 0xFF)
+		marker := int(data[pos])
+		pos++
+		segmentCount++
+		
+		debugLog("Debug WASM: Found marker 0x%X at position %d", marker, pos-1)
+		
+		// Markers without payload (like RSTn, SOI, EOI)
+		if (marker >= 0xD0 && marker <= 0xD7) || marker == 0x01 || marker == 0xD9 {
+			segments = append(segments, jpegSegment{Marker: marker, Length: 0})
+			if marker == 0xD9 { // EOI marker
+				debugLog("Debug WASM: parseJPEG found EOI, stopping parse.")
+				break
+			}
+			continue
+		}
+		
+		// SOS marker indicates start of compressed image data - special handling
+		if marker == MARKER_SOS {
+			// Read SOS segment length
+			if pos+1 >= len(data) {
+				debugLog("Debug WASM: parseJPEG not enough data for SOS length")
+				break
+			}
+			
+			length := int(data[pos])<<8 | int(data[pos+1])
+			if length < 2 { // Length includes the 2 length bytes
+				debugLog("Debug WASM: parseJPEG invalid SOS length %d", length)
+				break
+			}
+			
+			payloadLength := length - 2
+			pos += 2
+			
+			// Make sure we have enough data
+			if pos+payloadLength > len(data) {
+				debugLog("Debug WASM: parseJPEG not enough data for SOS payload")
+				break
+			}
+			
+			// Add SOS segment
+			segmentData := data[pos : pos+payloadLength]
+			segments = append(segments, jpegSegment{Marker: marker, Length: length, Data: segmentData})
+			
+			debugLog("Debug WASM: parseJPEG found SOS, stopping structured parsing. Image data follows.")
+			break // SOS is followed by entropy-coded data, not normal segments
+		}
+		
+		// All other markers have a length field
+		if pos+1 >= len(data) {
+			debugLog("Debug WASM: parseJPEG not enough data for length at pos %d (marker 0x%X)", pos, marker)
+			break
+		}
+		
+		length := int(data[pos])<<8 | int(data[pos+1])
+		if length < 2 { // Length includes the 2 length bytes
+			debugLog("Debug WASM: parseJPEG invalid length %d for marker 0x%X at pos %d", length, marker, pos)
+			break
+		}
+		
+		payloadLength := length - 2
+		pos += 2
+		
+		if pos+payloadLength > len(data) {
+			debugLog("Debug WASM: parseJPEG not enough data for payload (%d bytes) for marker 0x%X at pos %d", payloadLength, marker, pos)
+			break
+		}
+		
+		// Everything is good, add the segment
+		segmentData := data[pos : pos+payloadLength]
+		segments = append(segments, jpegSegment{Marker: marker, Length: length, Data: segmentData})
+		
+		// Check for C2PA markers
+		if marker == 0xE1 { // APP1 marker where C2PA data could be
+			// Look for the C2PA signature
+			if payloadLength > 10 {
+				signature := string(segmentData[0:10])
+				if signature == "http://ns." {
+					debugLog("Debug WASM: Found potential C2PA marker APP1 with size %d", length)
+				}
+			}
+		}
+		
+		// Advance to the next segment
+		pos += payloadLength
+	}
+	
+	debugLog("Debug WASM: Finished parsing %d JPEG segments.", len(segments))
+	return segments
+}
+</file>
+
+<file path="main.go">
+//go:build !wasmer
+// +build !wasmer
+
+// This file is built when the "wasmer" build tag is NOT specified.
+// It contains the native implementation of the C2PA metadata remover.
+
+package main
+
+import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+)
+
+// C2PA metadata markers
+const (
+	C2PA_NAMESPACE    = "http://c2pa.org/"
+	C2PA_MANIFEST_TAG = "c2pa:manifest"
+	C2PA_CLAIM_TAG    = "c2pa:claim"
+	
+	// JPEG specific markers
+	MARKER_SOI  = 0xFFD8 // Start of Image
+	MARKER_APP1 = 0xFFE1 // APP1 marker for XMP/EXIF data
+	MARKER_APP11 = 0xFFEB // APP11 marker where C2PA also lives
+	MARKER_SOS  = 0xFFDA // Start of Scan
+)
+
+// CheckC2PA checks if an image has C2PA metadata
+func CheckC2PA(data []byte) bool {
+	// Detect image format and use appropriate checker
+	if bytes.HasPrefix(data, []byte{0xFF, 0xD8}) {
+		// JPEG file
+		return checkC2PAJPEG(data)
+	} else if bytes.HasPrefix(data, []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}) {
+		// PNG file
+		return checkC2PAPNG(data)
+	}
+	
+	// Unsupported format
+	fmt.Println("Not a supported image format")
+	return false
+}
+
+// checkC2PAJPEG checks if a JPEG image has C2PA metadata
+func checkC2PAJPEG(data []byte) bool {
+	// Check all APP1 and APP11 segments
+	pos := 2 // Skip SOI marker
+	for pos < len(data)-4 {
+		// Check for marker
+		if data[pos] != 0xFF {
+			pos++
+			continue
+		}
+
+		markerType := data[pos+1]
+		
+		// If we've reached SOS, we're done checking metadata segments
+		if markerType == 0xDA {
+			break
+		}
+		
+		// Check if it's an APP1 segment with XMP data
+		if markerType == 0xE1 {
+			// Get segment length (includes length bytes but not marker)
+			length := int(binary.BigEndian.Uint16(data[pos+2:pos+4]))
+			if pos+2+length > len(data) {
+				// Invalid length
+				pos += 2
+				continue
+			}
+			
+			segmentData := data[pos+4:pos+2+length]
+			
+			// Check if it's XMP data
+			if bytes.HasPrefix(segmentData, []byte("http://ns.adobe.com/xap/1.0/")) {
+				// Convert to string for easier regex matching
+				xmpString := string(segmentData)
+				
+				// Check for C2PA namespace
+				if strings.Contains(xmpString, C2PA_NAMESPACE) {
+					return true
+				}
+				
+				// Check for C2PA manifest or claim tags
+				if strings.Contains(xmpString, C2PA_MANIFEST_TAG) || 
+				   strings.Contains(xmpString, C2PA_CLAIM_TAG) {
+					return true
+				}
+				
+				// Use regex to check for C2PA related content
+				c2paRegex := regexp.MustCompile(`(?i)c2pa|contentauthenticity|contentcredentials|cai`)
+				if c2paRegex.MatchString(xmpString) {
+					return true
+				}
+			}
+			
+			// Skip to next segment
+			pos += 2 + length
+		} else if markerType == 0xEB { // APP11 - where C2PA data can also be found
+			// Get segment length
+			length := int(binary.BigEndian.Uint16(data[pos+2:pos+4]))
+			if pos+2+length > len(data) {
+				// Invalid length
+				pos += 2
+				continue
+			}
+			
+			// APP11 segment can contain C2PA data directly
+			return true
+		} else if markerType >= 0xE0 && markerType <= 0xEF {
+			// Skip other APP segments
+			length := int(binary.BigEndian.Uint16(data[pos+2:pos+4]))
+			if pos+2+length > len(data) {
+				// Invalid length
+				pos += 2
+				continue
+			}
+			pos += 2 + length
+		} else {
+			// Skip other markers
+			pos += 2
+		}
+	}
+	
+	return false
+}
+
+// checkC2PAPNG checks if a PNG image has C2PA metadata
+func checkC2PAPNG(data []byte) bool {
+	// Check for C2PA related strings in the PNG data
+	// Look for common C2PA identifiers in iTXt or tEXt chunks
+	if bytes.Contains(data, []byte("C2PA")) || 
+	   bytes.Contains(data, []byte("c2pa")) ||
+	   bytes.Contains(data, []byte("cai:")) ||
+	   bytes.Contains(data, []byte("contentauthenticity")) ||
+	   bytes.Contains(data, []byte("contentcredentials")) {
+		return true
+	}
+	
+	// More detailed parsing could be added here
+	// For simplicity and consistency with the WASM implementation
+	// we'll use the simple content check approach
+	
+	return false
+}
+
+// RemoveC2PA removes C2PA metadata from image
+func RemoveC2PA(data []byte) ([]byte, error) {
+	// Detect image format
+	var format string
+	if bytes.HasPrefix(data, []byte{0xFF, 0xD8}) {
+		format = "jpeg"
+	} else if bytes.HasPrefix(data, []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}) {
+		format = "png"
+	} else {
+		return nil, fmt.Errorf("unsupported image format")
+	}
+
+	// Try standard library reencoding method first
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err == nil {
+		// Create a new buffer to store the cleaned image
+		var buf bytes.Buffer
+
+		// Re-encode the image without metadata based on format
+		switch format {
+		case "jpeg":
+			// Use standard JPEG encoder with high quality
+			err = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 95})
+			if err != nil {
+				fmt.Println("Warning: JPEG encoding failed, using fallback method")
+				return removeC2PAFallbackJPEG(data)
+			}
+		case "png":
+			err = png.Encode(&buf, img)
+			if err != nil {
+				fmt.Println("Warning: PNG encoding failed, using fallback method")
+				return removeC2PAFallbackPNG(data)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported format: %s", format)
+		}
+
+		// Check if C2PA metadata is still present
+		if !CheckC2PA(buf.Bytes()) {
+			return buf.Bytes(), nil
+		}
+		
+		fmt.Println("Warning: C2PA metadata persisted after standard reencoding, using fallback method")
+	} else {
+		fmt.Println("Warning: Image decoding failed, using fallback method")
+	}
+
+	// Fallback to custom segment parsing if standard reencoding fails or doesn't remove C2PA
+	if format == "jpeg" {
+		return removeC2PAFallbackJPEG(data)
+	} else if format == "png" {
+		return removeC2PAFallbackPNG(data)
+	}
+	
+	return nil, fmt.Errorf("no suitable removal method for format: %s", format)
+}
+
+// Fallback method for removing C2PA metadata from JPEG using custom segment parsing
+func removeC2PAFallbackJPEG(data []byte) ([]byte, error) {
+	// First check if this is a JPEG image
+	if len(data) < 2 || data[0] != 0xFF || data[1] != 0xD8 {
+		return nil, fmt.Errorf("not a valid JPEG file")
+	}
+	
+	// Parse using the SOI marker in first two bytes
+	result := []byte{0xFF, 0xD8} // Start with SOI marker
+	
+	// For each segment, decide whether to keep it or discard it
+	pos := 2 // Skip SOI marker
+	foundSOS := false
+	
+	for pos < len(data)-1 {
+		// Check for marker starting with 0xFF
+		if data[pos] != 0xFF {
+			// Skip unexpected bytes until we find the start of a marker
+			// This makes the parser more robust against malformed JPEG files
+			pos++
+			continue
+		}
+		
+		// Ensure there's enough data to read marker type
+		if pos+1 >= len(data) {
+			break // Reached end of data
+		}
+		
+		markerType := data[pos+1]
+		
+		// If we've reached SOS, copy the rest of the file
+		if markerType == 0xDA { // Start of Scan
+			foundSOS = true
+			// Add SOS marker and copy the rest of the file (image data)
+			result = append(result, data[pos:]...)
+			break
+		}
+		
+		// If it's EOI, we've reached the end
+		if markerType == 0xD9 { // End of Image
+			result = append(result, data[pos:pos+2]...)
+			break
+		}
+		
+		// Handle markers that don't have length
+		if (markerType >= 0xD0 && markerType <= 0xD7) || markerType == 0x01 {
+			result = append(result, 0xFF, markerType)
+			pos += 2
+			continue
+		}
+		
+		// All other markers should have a length field
+		if pos+4 > len(data) {
+			break // Not enough data for length
+		}
+		
+		// Get segment length (includes length bytes but not marker)
+		length := int(binary.BigEndian.Uint16(data[pos+2:pos+4]))
+		if length < 2 {
+			// Invalid length, skip marker and continue
+			pos += 2
+			continue
+		}
+		
+		// Make sure there's enough data for the full segment
+		if pos+2+length > len(data) {
+			// Not enough data, skip to end
+			break
+		}
+		
+		// Check if it's an APP1 or APP11 segment potentially containing C2PA data
+		if markerType == 0xE1 { // APP1 marker
+			containsC2PA := false
+			
+			// Only check XMP segments containing namespace
+			segmentData := data[pos+4:pos+2+length]
+			if bytes.HasPrefix(segmentData, []byte("http://ns.adobe.com/xap/1.0/")) {
+				// Convert to string for easier string matching
+				xmpString := string(segmentData)
+				
+				// Check for C2PA namespace or tags
+				if strings.Contains(xmpString, C2PA_NAMESPACE) ||
+				   strings.Contains(xmpString, C2PA_MANIFEST_TAG) || 
+				   strings.Contains(xmpString, C2PA_CLAIM_TAG) {
+					containsC2PA = true
+				}
+				
+				// Also use regex for more comprehensive detection
+				c2paRegex := regexp.MustCompile(`(?i)c2pa|contentauthenticity|contentcredentials|cai`)
+				if c2paRegex.MatchString(xmpString) {
+					containsC2PA = true
+				}
+			}
+			
+			// Only keep segment if it doesn't contain C2PA data
+			if !containsC2PA {
+				result = append(result, data[pos:pos+2+length]...)
+			} else {
+				fmt.Println("Removing C2PA metadata segment")
+			}
+		} else if markerType == 0xEB { // APP11 marker, which often contains C2PA data
+			// Skip this segment as it might contain C2PA data
+			fmt.Println("Removing APP11 segment that might contain C2PA metadata")
+		} else {
+			// Keep other segments
+			result = append(result, data[pos:pos+2+length]...)
+		}
+		
+		// Move to next segment
+		pos += 2 + length
+	}
+	
+	// If we didn't find the SOS marker, make sure we have an EOI marker at the end
+	if !foundSOS && !bytes.HasSuffix(result, []byte{0xFF, 0xD9}) {
+		result = append(result, 0xFF, 0xD9) // Add EOI marker to ensure valid JPEG
+	}
+	
+	return result, nil
+}
+
+// PNGChunk represents a chunk in a PNG file
+type pngChunk struct {
+	length    uint32
+	chunkType string
+	data      []byte
+	crc       uint32
+}
+
+// extractPNGChunks extracts chunks from PNG data
+func extractPNGChunks(data []byte) []pngChunk {
+	var chunks []pngChunk
+	
+	// Skip the PNG signature (8 bytes)
+	pos := 8
+	
+	for pos+12 <= len(data) { // Minimum chunk size: 4 (length) + 4 (type) + 0 (data) + 4 (CRC)
+		// Read chunk length (4 bytes, big-endian)
+		length := uint32(data[pos])<<24 | uint32(data[pos+1])<<16 | uint32(data[pos+2])<<8 | uint32(data[pos+3])
+		pos += 4
+		
+		// Read chunk type (4 bytes)
+		chunkType := string(data[pos:pos+4])
+		pos += 4
+		
+		// Check if there's enough data for the chunk
+		if pos+int(length)+4 > len(data) {
+			fmt.Printf("PNG chunk truncated (%s, length %d)\n", chunkType, length)
+			break
+		}
+		
+		// Read chunk data
+		chunkData := data[pos:pos+int(length)]
+		pos += int(length)
+		
+		// Read CRC (4 bytes)
+		crc := uint32(data[pos])<<24 | uint32(data[pos+1])<<16 | uint32(data[pos+2])<<8 | uint32(data[pos+3])
+		pos += 4
+		
+		chunks = append(chunks, pngChunk{
+			length:    length,
+			chunkType: chunkType,
+			data:      chunkData,
+			crc:       crc,
+		})
+		
+		// Break if we've reached the IEND chunk
+		if chunkType == "IEND" {
+			break
+		}
+	}
+	
+	return chunks
+}
+
+// removeC2PAFallbackPNG removes C2PA metadata from PNG by selectively copying non-C2PA chunks
+func removeC2PAFallbackPNG(data []byte) ([]byte, error) {
+	fmt.Println("Using fallback PNG chunk removal method")
+	
+	// Extract all PNG chunks
+	chunks := extractPNGChunks(data)
+	if len(chunks) == 0 {
+		return nil, fmt.Errorf("failed to parse PNG chunks")
+	}
+	
+	// Create a new buffer for the cleaned PNG
+	buf := new(bytes.Buffer)
+	
+	// Write PNG signature
+	_, _ = buf.Write([]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A})
+	
+	// Track if we've removed any chunks
+	removed := false
+	
+	// Copy all chunks except those containing C2PA data
+	for i, chunk := range chunks {
+		// Check text chunks for C2PA content
+		isC2PAChunk := false
+		if chunk.chunkType == "iTXt" || chunk.chunkType == "tEXt" {
+			chunkData := string(chunk.data)
+			if strings.Contains(strings.ToLower(chunkData), "c2pa") || 
+			   strings.Contains(strings.ToLower(chunkData), "contentauthenticity") ||
+			   strings.Contains(strings.ToLower(chunkData), "cai:") {
+				fmt.Printf("Removing C2PA chunk #%d (type: %s)\n", i, chunk.chunkType)
+				isC2PAChunk = true
+				removed = true
+			}
+		}
+		
+		// Skip C2PA chunks
+		if isC2PAChunk {
+			continue
+		}
+		
+		// Write chunk length (4 bytes)
+		lengthBytes := []byte{
+			byte(chunk.length >> 24),
+			byte(chunk.length >> 16),
+			byte(chunk.length >> 8),
+			byte(chunk.length),
+		}
+		_, _ = buf.Write(lengthBytes)
+		
+		// Write chunk type (4 bytes)
+		_, _ = buf.Write([]byte(chunk.chunkType))
+		
+		// Write chunk data
+		_, _ = buf.Write(chunk.data)
+		
+		// Write CRC (4 bytes)
+		crcBytes := []byte{
+			byte(chunk.crc >> 24),
+			byte(chunk.crc >> 16),
+			byte(chunk.crc >> 8),
+			byte(chunk.crc),
+		}
+		_, _ = buf.Write(crcBytes)
+	}
+	
+	if !removed {
+		fmt.Println("No C2PA chunks found to remove in PNG")
+		return data, fmt.Errorf("no C2PA chunks found to remove")
+	}
+	
+	cleanedData := buf.Bytes()
+	fmt.Printf("PNG fallback removal finished (%d bytes)\n", len(cleanedData))
+	
+	// Verify removal was successful
+	if CheckC2PA(cleanedData) {
+		fmt.Println("Error: PNG fallback removal failed verification check")
+		return data, fmt.Errorf("PNG fallback removal failed verification check")
+	}
+	
+	fmt.Println("PNG fallback removal verified successfully")
+	return cleanedData, nil
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: c2paremover [check|remove] <image_file>")
+		fmt.Println("Examples:")
+		fmt.Println("  c2paremover check image.jpg")
+		fmt.Println("  c2paremover remove image.jpg")
+		fmt.Println("  c2paremover check-dir directory")
+		return
+	}
+
+	mode := os.Args[1]
+
+	if mode == "check-dir" {
+		if len(os.Args) < 3 {
+			fmt.Println("Please specify a directory")
+			return
+		}
+		
+		dirPath := os.Args[2]
+		checkDirectory(dirPath)
+		return
+	}
+
+	if len(os.Args) < 3 {
+		fmt.Println("Please specify an image file")
+		return
+	}
+	
+	filePath := os.Args[2]
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return
+	}
+
+	switch mode {
+	case "check":
+		if CheckC2PA(data) {
+			fmt.Println("⚠️  C2PA metadata detected")
+		} else {
+			fmt.Println("✓ No C2PA metadata found")
+		}
+	case "remove":
+		if !CheckC2PA(data) {
+			fmt.Println("No C2PA metadata found, no changes needed")
+			return
+		}
+		
+		fmt.Println("Removing C2PA metadata...")
+		newData, err := RemoveC2PA(data)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+		
+		if len(newData) == len(data) && bytes.Equal(newData, data) {
+			fmt.Println("No changes made")
+		} else {
+			cleanPath := filePath + ".cleaned" + filepath.Ext(filePath)
+			err = os.WriteFile(cleanPath, newData, 0644)
+			if err != nil {
+				fmt.Println("Error saving file:", err)
+			} else {
+				fmt.Printf("✓ Cleaned file saved as %s (%.1f%% of original size)\n", 
+					cleanPath, float64(len(newData))/float64(len(data))*100)
+				
+				// Verify the cleaned file
+				cleanData, _ := os.ReadFile(cleanPath)
+				if CheckC2PA(cleanData) {
+					fmt.Println("⚠️  Warning: C2PA metadata still detected in cleaned file")
+				} else {
+					fmt.Println("✓ Verification: No C2PA metadata in cleaned file")
+				}
+			}
+		}
+	default:
+		fmt.Println("Invalid mode. Use 'check', 'remove', or 'check-dir'")
+	}
+}
+
+// Check all image files in a directory for C2PA metadata
+func checkDirectory(dirPath string) {
+	files, err := os.ReadDir(dirPath)
+	if err != nil {
+		fmt.Println("Error reading directory:", err)
+		return
+	}
+
+	imagesChecked := 0
+	imagesWithC2PA := 0
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		// Check if it's an image file
+		ext := strings.ToLower(filepath.Ext(file.Name()))
+		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+			continue
+		}
+
+		filePath := filepath.Join(dirPath, file.Name())
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			fmt.Println("Error reading file:", filePath, err)
+			continue
+		}
+
+		imagesChecked++
+		hasC2PA := CheckC2PA(data)
+		if hasC2PA {
+			imagesWithC2PA++
+			fmt.Printf("⚠️  %s: C2PA metadata detected\n", file.Name())
+		} else {
+			fmt.Printf("✓ %s: No C2PA metadata\n", file.Name())
+		}
+	}
+
+	fmt.Printf("\nSummary: Checked %d images, found C2PA metadata in %d images\n", 
+		imagesChecked, imagesWithC2PA)
 }
 </file>
 

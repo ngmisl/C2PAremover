@@ -21,7 +21,7 @@ build:
 # Build WebAssembly binary
 wasm:
 	@echo "Building WebAssembly binary..."
-	$(GO) build $(GOFLAGS) -tags=wasmer -o $(WASM_BIN)
+	GOOS=wasip1 GOARCH=wasm $(GO) build $(GOFLAGS) -tags=wasmer -o $(WASM_BIN)
 
 # Run tests
 test:

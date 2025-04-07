@@ -25,11 +25,11 @@ const (
 	C2PA_MANIFEST_TAG = "c2pa:manifest"
 	C2PA_CLAIM_TAG    = "c2pa:claim"
 	
-	// JPEG specific markers
-	MARKER_SOI   = 0xFFD8 // Start of Image
-	MARKER_APP1  = 0xFFE1 // APP1 marker for XMP/EXIF data
-	MARKER_APP11 = 0xFFEB // APP11 marker where C2PA also lives
-	MARKER_SOS   = 0xFFDA // Start of Scan
+	// JPEG specific markers - only the second byte, since that's what we store in seg.Marker
+	MARKER_SOI   = 0xD8 // Start of Image (second byte only)
+	MARKER_APP1  = 0xE1 // APP1 marker for XMP/EXIF data
+	MARKER_APP11 = 0xEB // APP11 marker where C2PA also lives
+	MARKER_SOS   = 0xDA // Start of Scan
 	
 	// Debug mode flag - set to false to disable verbose logging in production
 	debugMode = true
@@ -138,22 +138,42 @@ func checkC2PAJPEG(data []byte) bool {
 		
 		// Check for APP11 (0xEB) which is where C2PA typically lives in JPEG
 		if seg.Marker == MARKER_APP11 { // APP11 (0xFFEB in the JPEG file)
-			debugLog("Debug WASM: Found C2PA potential marker (APP11)")
-			// Optional: deeper inspection of the segment data here to confirm it's C2PA
+			debugLog("Debug WASM: Found C2PA marker (APP11) - this is automatically considered C2PA data")
+			// In the native implementation, ANY APP11 segment is treated as C2PA data without further inspection
 			return true
 		}
 		
 		// Check APP1 (0xE1) for XMP containing C2PA namespace or manifest
 		if seg.Marker == MARKER_APP1 { // APP1 (0xFFE1 in the JPEG file)
 			// Only log check if segment data isn't huge
-            if seg.Length < 1024 {
-                debugLog("Debug WASM: Checking APP1 segment (len %d) for C2PA strings\n", seg.Length)
-            } else {
-                debugLog("Debug WASM: Checking large APP1 segment (len %d) for C2PA strings\n", seg.Length)
-            }
+			if seg.Length < 1024 {
+				debugLog("Debug WASM: Checking APP1 segment (len %d) for C2PA strings\n", seg.Length)
+			} else {
+				debugLog("Debug WASM: Checking large APP1 segment (len %d) for C2PA strings\n", seg.Length)
+			}
 			
-			if bytes.Contains(seg.Data, []byte(C2PA_NAMESPACE)) || bytes.Contains(seg.Data, []byte(C2PA_MANIFEST_TAG)) {
-				debugLog("Debug WASM: Found C2PA namespace or manifest in APP1")
+			// Show the first 100 bytes as hex for debugging
+			if len(seg.Data) > 0 {
+				showBytes := 100
+				if len(seg.Data) < showBytes {
+					showBytes = len(seg.Data)
+				}
+				debugLog("Debug WASM: APP1 data starts with: %X", seg.Data[:showBytes])
+				
+				// Also try to show it as a string for ASCII parts
+				if showBytes > 30 {
+					debugLog("Debug WASM: APP1 data as string: %s", string(seg.Data[:30]))
+				}
+			}
+			
+			// Extended checks for C2PA content
+			if bytes.Contains(seg.Data, []byte(C2PA_NAMESPACE)) || 
+			   bytes.Contains(seg.Data, []byte(C2PA_MANIFEST_TAG)) || 
+			   bytes.Contains(seg.Data, []byte("c2pa")) ||
+			   bytes.Contains(seg.Data, []byte("C2PA")) ||
+			   bytes.Contains(seg.Data, []byte("jumbf")) ||
+			   bytes.Contains(seg.Data, []byte("JUMBF")) {
+				debugLog("Debug WASM: Found C2PA namespace or related strings in APP1")
 				return true
 			}
 		}
@@ -480,72 +500,124 @@ func parseJPEG(data []byte) []jpegSegment {
 		debugLog("Debug WASM: parseJPEG failed SOI check")
 		return nil
 	}
-	// debugLog("Debug WASM: parseJPEG started") // Reduce noise
+	
+	// Add the SOI marker as the first segment
+	segments = append(segments, jpegSegment{Marker: 0xD8, Length: 0})
+	
+	// Start parsing after the SOI marker
 	pos := 2
 	segmentCount := 0
+	
 	for pos < len(data)-1 {
-		if data[pos] != 0xFF {
-			// Skip non-FF bytes until we find the start of a marker or run out of data
-            debugLog("Debug WASM: parseJPEG skipping unexpected byte 0x%X at pos %d\n", data[pos], pos)
-            pos++
-            continue
+		// Look for the next 0xFF byte which marks the start of a segment
+		for pos < len(data) && data[pos] != 0xFF {
+			pos++
 		}
-
-		// Found 0xFF, check the next byte for the marker type
-		if pos+1 >= len(data) {
-			debugLog("Debug WASM: parseJPEG found 0xFF at end of data (pos %d)\n", pos)
-            break // Reached end of data after finding 0xFF
-        }
-		marker := int(data[pos+1])
-		pos += 2
+		
+		if pos >= len(data) {
+			break // Reached end of data
+		}
+		
+		// Skip any padding 0xFF bytes (JPEG allows multiple 0xFF as padding)
+		while_ff_loop:
+		for pos < len(data) && data[pos] == 0xFF {
+			pos++
+			if pos >= len(data) {
+				break while_ff_loop
+			}
+		}
+		
+		if pos >= len(data) {
+			break // Reached end of data after padding
+		}
+		
+		// Now pos should be pointing at the marker byte (after 0xFF)
+		marker := int(data[pos])
+		pos++
 		segmentCount++
-
-		// Markers without payload length (RSTm, EOI, etc.)
-        // Note: We handle EOI explicitly to break the loop.
-        if (marker >= 0xD0 && marker <= 0xD7) || marker == 0x01 {
-            segments = append(segments, jpegSegment{Marker: marker, Length: 0})
-            continue // Move to the next marker search
+		
+		debugLog("Debug WASM: Found marker 0x%X at position %d", marker, pos-1)
+		
+		// Markers without payload (like RSTn, SOI, EOI)
+		if (marker >= 0xD0 && marker <= 0xD7) || marker == 0x01 || marker == 0xD9 {
+			segments = append(segments, jpegSegment{Marker: marker, Length: 0})
+			if marker == 0xD9 { // EOI marker
+				debugLog("Debug WASM: parseJPEG found EOI, stopping parse.")
+				break
+			}
+			continue
 		}
-        
-        // SOS marker (Start of Scan) - Stop parsing segments, rest is image data
-        if marker == MARKER_SOS {
-             segments = append(segments, jpegSegment{Marker: marker, Length: 0})
-             debugLog("Debug WASM: parseJPEG found SOS, stopping segment parse.")
-             break
-        }
-
-        // EOI marker (End of Image)
-        if marker == 0xD9 {
-            segments = append(segments, jpegSegment{Marker: marker, Length: 0})
-            debugLog("Debug WASM: parseJPEG found EOI, stopping parse.")
-            break // Stop parsing after EOI
-        }
-
-		// All other markers should have a length field
-		if pos+2 > len(data) {
-			debugLog("Debug WASM: parseJPEG not enough data for length at pos %d (marker 0x%X)\n", pos, marker)
+		
+		// SOS marker indicates start of compressed image data - special handling
+		if marker == MARKER_SOS {
+			// Read SOS segment length
+			if pos+1 >= len(data) {
+				debugLog("Debug WASM: parseJPEG not enough data for SOS length")
+				break
+			}
+			
+			length := int(data[pos])<<8 | int(data[pos+1])
+			if length < 2 { // Length includes the 2 length bytes
+				debugLog("Debug WASM: parseJPEG invalid SOS length %d", length)
+				break
+			}
+			
+			payloadLength := length - 2
+			pos += 2
+			
+			// Make sure we have enough data
+			if pos+payloadLength > len(data) {
+				debugLog("Debug WASM: parseJPEG not enough data for SOS payload")
+				break
+			}
+			
+			// Add SOS segment
+			segmentData := data[pos : pos+payloadLength]
+			segments = append(segments, jpegSegment{Marker: marker, Length: length, Data: segmentData})
+			
+			debugLog("Debug WASM: parseJPEG found SOS, stopping structured parsing. Image data follows.")
+			break // SOS is followed by entropy-coded data, not normal segments
+		}
+		
+		// All other markers have a length field
+		if pos+1 >= len(data) {
+			debugLog("Debug WASM: parseJPEG not enough data for length at pos %d (marker 0x%X)", pos, marker)
 			break
 		}
-
+		
 		length := int(data[pos])<<8 | int(data[pos+1])
-		if length < 2 { // Length includes the 2 length bytes, so must be >= 2
-             debugLog("Debug WASM: parseJPEG invalid length %d for marker 0x%X at pos %d\n", length, marker, pos)
-             // Attempt to skip marker and continue searching? Risky.
-             // Let's break for now, but a more robust parser might try to recover.
-             break
-        }
+		if length < 2 { // Length includes the 2 length bytes
+			debugLog("Debug WASM: parseJPEG invalid length %d for marker 0x%X at pos %d", length, marker, pos)
+			break
+		}
+		
 		payloadLength := length - 2
 		pos += 2
-
+		
 		if pos+payloadLength > len(data) {
-			debugLog("Debug WASM: parseJPEG not enough data for payload (%d bytes) for marker 0x%X at pos %d\n", payloadLength, marker, pos)
+			debugLog("Debug WASM: parseJPEG not enough data for payload (%d bytes) for marker 0x%X at pos %d", payloadLength, marker, pos)
 			break
 		}
-
+		
+		// Everything is good, add the segment
 		segmentData := data[pos : pos+payloadLength]
 		segments = append(segments, jpegSegment{Marker: marker, Length: length, Data: segmentData})
+		
+		// Check for C2PA markers
+		if marker == 0xE1 { // APP1 marker where C2PA data could be
+			// Look for the C2PA signature
+			if payloadLength > 10 {
+				signature := string(segmentData[0:10])
+				if signature == "http://ns." {
+					debugLog("Debug WASM: Found potential C2PA marker APP1 with size %d", length)
+				}
+			}
+		}
+		
+		// Advance to the next segment
 		pos += payloadLength
 	}
-	debugLog("Debug WASM: parseJPEG finished, parsed %d segments (stopped at pos %d)\n", len(segments), pos)
+	
+	debugLog("Debug WASM: Finished parsing %d JPEG segments.", len(segments))
 	return segments
 }
