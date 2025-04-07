@@ -1,4 +1,9 @@
 //go:build wasmer
+// +build wasmer
+
+// This file is built only when the "wasmer" build tag is specified.
+// For IDE support, you may need to add "-tags=wasmer" to your gopls settings.
+// See: https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags
 
 package main
 
@@ -13,11 +18,18 @@ import (
 	"strings"
 )
 
-// Constants for C2PA markers (remains the same)
+// Constants for C2PA markers and JPEG/PNG format detection
 const (
-	c2paMarkerJPEG = 0xEB // APP11 marker for C2PA in JPEG
-	c2paNamespace  = "http://ns.adobe.com/xap/1.0/"
-	c2paManifest   = "c2pa.manifest"
+	// C2PA metadata markers - matches main.go
+	C2PA_NAMESPACE    = "http://c2pa.org/"
+	C2PA_MANIFEST_TAG = "c2pa:manifest"
+	C2PA_CLAIM_TAG    = "c2pa:claim"
+	
+	// JPEG specific markers
+	MARKER_SOI   = 0xFFD8 // Start of Image
+	MARKER_APP1  = 0xFFE1 // APP1 marker for XMP/EXIF data
+	MARKER_APP11 = 0xFFEB // APP11 marker where C2PA also lives
+	MARKER_SOS   = 0xFFDA // Start of Scan
 	
 	// Debug mode flag - set to false to disable verbose logging in production
 	debugMode = true
@@ -125,14 +137,14 @@ func checkC2PAJPEG(data []byte) bool {
         }
 		
 		// Check for APP11 (0xEB) which is where C2PA typically lives in JPEG
-		if seg.Marker == 0xEB { // APP11 (0xFFEB in the JPEG file)
+		if seg.Marker == MARKER_APP11 { // APP11 (0xFFEB in the JPEG file)
 			debugLog("Debug WASM: Found C2PA potential marker (APP11)")
 			// Optional: deeper inspection of the segment data here to confirm it's C2PA
 			return true
 		}
 		
 		// Check APP1 (0xE1) for XMP containing C2PA namespace or manifest
-		if seg.Marker == 0xE1 { // APP1 (0xFFE1 in the JPEG file)
+		if seg.Marker == MARKER_APP1 { // APP1 (0xFFE1 in the JPEG file)
 			// Only log check if segment data isn't huge
             if seg.Length < 1024 {
                 debugLog("Debug WASM: Checking APP1 segment (len %d) for C2PA strings\n", seg.Length)
@@ -140,7 +152,7 @@ func checkC2PAJPEG(data []byte) bool {
                 debugLog("Debug WASM: Checking large APP1 segment (len %d) for C2PA strings\n", seg.Length)
             }
 			
-			if bytes.Contains(seg.Data, []byte(c2paNamespace)) || bytes.Contains(seg.Data, []byte(c2paManifest)) {
+			if bytes.Contains(seg.Data, []byte(C2PA_NAMESPACE)) || bytes.Contains(seg.Data, []byte(C2PA_MANIFEST_TAG)) {
 				debugLog("Debug WASM: Found C2PA namespace or manifest in APP1")
 				return true
 			}
@@ -247,7 +259,6 @@ func extractPNGChunks(data []byte) []pngChunk {
 }
 
 // RemoveC2PA attempts to remove C2PA metadata
-// (Function remains mostly the same, adapt logging)
 func RemoveC2PA(data []byte) ([]byte, error) {
 	debugLog("Debug WASM: Entering RemoveC2PA")
 	format, err := detectImageFormat(data)
@@ -290,67 +301,156 @@ func RemoveC2PA(data []byte) ([]byte, error) {
 		debugLog("Debug WASM: Image decode failed for smart mode: %v. Proceeding to fallback...\n", err)
 	}
 
-	// 2. Fallback Mode (JPEG specific for now)
+	// 2. Fallback Modes for different formats
 	if format == "jpeg" {
-		debugLog("Debug WASM: Using fallback JPEG segment removal.")
-		segments := parseJPEG(data)
-		buf := new(bytes.Buffer)
-		_, _ = buf.Write([]byte{0xFF, 0xD8}) // SOI
-
-		removed := false
-		for i, seg := range segments {
-			if seg.Marker == c2paMarkerJPEG || (seg.Marker == 0xE1 && (bytes.Contains(seg.Data, []byte(c2paNamespace)) || bytes.Contains(seg.Data, []byte(c2paManifest)))) {
-				debugLog("Debug WASM: Fallback: Removing segment %d (Marker=0x%X)\n", i, seg.Marker)
-				removed = true
-				continue // Skip writing this segment
-			}
-			// Write segment if not removed
-			_, _ = buf.Write([]byte{0xFF, byte(seg.Marker)}) // Write marker
-			if seg.Length > 0 {                               // Marker length includes the 2 bytes for length itself
-				lenBytes := []byte{byte(seg.Length >> 8), byte(seg.Length & 0xFF)}
-				_, _ = buf.Write(lenBytes) // Write length
-				_, _ = buf.Write(seg.Data) // Write data
-			}
-		}
-
-		// Need to ensure EOI marker is present if it was in the original segments
-		foundEOI := false
-		for _, seg := range segments {
-			if seg.Marker == 0xD9 { // EOI
-				foundEOI = true
-				break
-			}
-		}
-		if foundEOI {
-			_, _ = buf.Write([]byte{0xFF, 0xD9}) // EOI
-			debugLog("Debug WASM: Fallback: Appended EOI marker.")
-		} else {
-             // If original segments didn't have EOI, maybe it's truncated? Add it just in case.
-             // Cautious approach: only add if it was missing in the parsed segments. Many JPEGs omit it.
-            debugLog("Warning: Original JPEG did not contain EOI marker (0xFFD9). Not adding one.")
-        }
-
-		if !removed {
-			debugLog("Warning: Fallback mode did not find specific C2PA markers to remove.")
-			// Return original data if nothing was actually removed by fallback
-            // to avoid unnecessary modification.
-            return data, fmt.Errorf("fallback mode found no C2PA markers to remove")
-		}
-        
-        cleanedData := buf.Bytes()
-		debugLog("Debug WASM: Fallback removal finished (%d bytes output). Verifying...\n", len(cleanedData))
-        // Final verification
-        if CheckC2PA(cleanedData) {
-			 debugLog("Error: Fallback removal failed verification check.")
-             return data, fmt.Errorf("fallback removal failed verification check")
-        }
-		debugLog("Debug WASM: Fallback removal verified.")
-		return cleanedData, nil
+		return removeC2PAFallbackJPEG(data)
+	} else if format == "png" {
+		return removeC2PAFallbackPNG(data)
 	}
 
-	// If fallback is not applicable (e.g., PNG and smart mode failed)
+	// If no applicable fallback method
 	debugLog("Debug WASM: Failed to remove C2PA (smart mode failed, no fallback for %s)\n", format)
 	return nil, fmt.Errorf("failed to remove C2PA metadata (smart mode failed, no fallback for %s)", format)
+}
+
+// removeC2PAFallbackJPEG removes C2PA metadata from JPEG using segment parsing
+func removeC2PAFallbackJPEG(data []byte) ([]byte, error) {
+	debugLog("Debug WASM: Using fallback JPEG segment removal.")
+	segments := parseJPEG(data)
+	buf := new(bytes.Buffer)
+	_, _ = buf.Write([]byte{0xFF, 0xD8}) // SOI
+
+	removed := false
+	for i, seg := range segments {
+		if seg.Marker == MARKER_APP11 || (seg.Marker == MARKER_APP1 && (bytes.Contains(seg.Data, []byte(C2PA_NAMESPACE)) || bytes.Contains(seg.Data, []byte(C2PA_MANIFEST_TAG)))) {
+			debugLog("Debug WASM: Fallback: Removing segment %d (Marker=0x%X)\n", i, seg.Marker)
+			removed = true
+			continue // Skip writing this segment
+		}
+		// Write segment if not removed
+		_, _ = buf.Write([]byte{0xFF, byte(seg.Marker)}) // Write marker
+		if seg.Length > 0 {                               // Marker length includes the 2 bytes for length itself
+			lenBytes := []byte{byte(seg.Length >> 8), byte(seg.Length & 0xFF)}
+			_, _ = buf.Write(lenBytes) // Write length
+			_, _ = buf.Write(seg.Data) // Write data
+		}
+	}
+
+	// Need to ensure EOI marker is present if it was in the original segments
+	foundEOI := false
+	for _, seg := range segments {
+		if seg.Marker == 0xD9 { // EOI
+			foundEOI = true
+			break
+		}
+	}
+	if foundEOI {
+		_, _ = buf.Write([]byte{0xFF, 0xD9}) // EOI
+		debugLog("Debug WASM: Fallback: Appended EOI marker.")
+	} else {
+         // If original segments didn't have EOI, maybe it's truncated? Add it just in case.
+         // Cautious approach: only add if it was missing in the parsed segments. Many JPEGs omit it.
+        debugLog("Warning: Original JPEG did not contain EOI marker (0xFFD9). Not adding one.")
+    }
+
+	if !removed {
+		debugLog("Warning: Fallback mode did not find specific C2PA markers to remove.")
+		// Return original data if nothing was actually removed by fallback
+        // to avoid unnecessary modification.
+        return data, fmt.Errorf("fallback mode found no C2PA markers to remove")
+	}
+    
+    cleanedData := buf.Bytes()
+	debugLog("Debug WASM: Fallback removal finished (%d bytes output). Verifying...\n", len(cleanedData))
+    // Final verification
+    if CheckC2PA(cleanedData) {
+		 debugLog("Error: Fallback removal failed verification check.")
+         return data, fmt.Errorf("fallback removal failed verification check")
+    }
+	debugLog("Debug WASM: Fallback removal verified.")
+	return cleanedData, nil
+}
+
+// removeC2PAFallbackPNG removes C2PA metadata from PNG by selectively copying non-C2PA chunks
+func removeC2PAFallbackPNG(data []byte) ([]byte, error) {
+	debugLog("Debug WASM: Using fallback PNG chunk removal method")
+	
+	// Extract all PNG chunks
+	chunks := extractPNGChunks(data)
+	if len(chunks) == 0 {
+		return nil, fmt.Errorf("failed to parse PNG chunks")
+	}
+	
+	// Create a new buffer for the cleaned PNG
+	buf := new(bytes.Buffer)
+	
+	// Write PNG signature
+	_, _ = buf.Write([]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A})
+	
+	// Track if we've removed any chunks
+	removed := false
+	
+	// Copy all chunks except those containing C2PA data
+	for i, chunk := range chunks {
+		// Check text chunks for C2PA content
+		isC2PAChunk := false
+		if chunk.chunkType == "iTXt" || chunk.chunkType == "tEXt" {
+			chunkData := string(chunk.data)
+			if strings.Contains(strings.ToLower(chunkData), "c2pa") || 
+			   strings.Contains(strings.ToLower(chunkData), "contentauthenticity") ||
+			   strings.Contains(strings.ToLower(chunkData), "cai:") {
+				debugLog("Debug WASM: Removing C2PA chunk #%d (type: %s)\n", i, chunk.chunkType)
+				isC2PAChunk = true
+				removed = true
+			}
+		}
+		
+		// Skip C2PA chunks
+		if isC2PAChunk {
+			continue
+		}
+		
+		// Write chunk length (4 bytes)
+		lengthBytes := []byte{
+			byte(chunk.length >> 24),
+			byte(chunk.length >> 16),
+			byte(chunk.length >> 8),
+			byte(chunk.length),
+		}
+		_, _ = buf.Write(lengthBytes)
+		
+		// Write chunk type (4 bytes)
+		_, _ = buf.Write([]byte(chunk.chunkType))
+		
+		// Write chunk data
+		_, _ = buf.Write(chunk.data)
+		
+		// Write CRC (4 bytes)
+		crcBytes := []byte{
+			byte(chunk.crc >> 24),
+			byte(chunk.crc >> 16),
+			byte(chunk.crc >> 8),
+			byte(chunk.crc),
+		}
+		_, _ = buf.Write(crcBytes)
+	}
+	
+	if !removed {
+		debugLog("Debug WASM: No C2PA chunks found to remove in PNG")
+		return data, fmt.Errorf("no C2PA chunks found to remove")
+	}
+	
+	cleanedData := buf.Bytes()
+	debugLog("Debug WASM: PNG fallback removal finished (%d bytes). Verifying...\n", len(cleanedData))
+	
+	// Verify removal was successful
+	if CheckC2PA(cleanedData) {
+		debugLog("Error: PNG fallback removal failed verification check")
+		return data, fmt.Errorf("PNG fallback removal failed verification check")
+	}
+	
+	debugLog("Debug WASM: PNG fallback removal verified successfully")
+	return cleanedData, nil
 }
 
 // detectImageFormat detects if data is JPEG or PNG
@@ -408,7 +508,7 @@ func parseJPEG(data []byte) []jpegSegment {
 		}
         
         // SOS marker (Start of Scan) - Stop parsing segments, rest is image data
-        if marker == 0xDA {
+        if marker == MARKER_SOS {
              segments = append(segments, jpegSegment{Marker: marker, Length: 0})
              debugLog("Debug WASM: parseJPEG found SOS, stopping segment parse.")
              break
