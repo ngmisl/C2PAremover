@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,8 +24,12 @@ func TestMain(m *testing.M) {
 // cleanTestDir removes the testdata directory to prevent accumulation of test files
 func cleanTestDir() {
 	testDir := "testdata"
-	// Remove the entire directory
-	_ = os.RemoveAll(testDir)
+	// Remove the entire directory and properly handle errors
+	if err := os.RemoveAll(testDir); err != nil {
+		// In a test helper we can't use t.Fatal, so log the error
+		// This will at least provide visibility into file system issues
+		fmt.Printf("Warning: Failed to clean test directory: %v\n", err)
+	}
 }
 
 // TestCheckC2PA tests the C2PA detection functionality

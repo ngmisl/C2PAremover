@@ -24,7 +24,7 @@ C2PA (Coalition for Content Provenance and Authenticity) is a metadata standard 
 #### From Source
 
 ```bash
-# Requires Go 1.24.1 or later
+# Requires Go 1.24 or later
 git clone https://github.com/ngmisl/C2PAremover.git
 cd C2PAremover
 go build -o c2paremover .
