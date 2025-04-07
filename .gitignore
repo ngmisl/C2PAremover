@@ -7,6 +7,11 @@
 *.test
 *.out
 
+# Project-specific binaries and artifacts
+c2paremover
+*.wasm
+*.cleaned.*
+
 # Test data
 testdata/
 
@@ -15,5 +20,8 @@ testdata/
 
 # Go workspace file
 go.work
+
+# Wasmer files
+wasmer.toml.bak
 
 # End of https://www.toptal.com/developers/gitignore/api/go
