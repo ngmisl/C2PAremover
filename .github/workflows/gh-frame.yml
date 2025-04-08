@@ -23,7 +23,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Generate Farcaster-friendly Page
-        uses: vrypan/gh-frame@v2.0.1
+        uses: vrypan/gh-frame@v2.0.3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}  # Default GitHub token
           style: dark  # light/dark/custom
