@@ -1,0 +1,47 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Weekly scan on Sundays
+    - cron: '0 0 * * 0'
+
+jobs:
+  security-scan:
+    name: Run Vibecondom Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+
+    - name: Run Vibecondom
+      run: |
+        # Build the tool
+        go build -o vibecondom .
+        
+        # Run the security scan
+        ./vibecondom -mode local -target . -exts ".txt,.md,.mdc,.windsurfrules,AGENT.md,AGENTS.md"
+      env:
+        # Set to true to see debug output
+        RUNNER_DEBUG: 1
+
+    - name: Upload scan results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan-results
+        path: |
+          *.log
+          *.json
+        retention-days: 7
