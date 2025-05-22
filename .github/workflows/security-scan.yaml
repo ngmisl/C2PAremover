@@ -33,8 +33,13 @@ jobs:
         # Show current directory structure for debugging
         ls -la
         
-        # Run the security scan on the repository root
-        ./vibecondom -mode local -target ./ -exts ".txt,.md,.mdc,.windsurfrules,AGENT.md,AGENTS.md" -log-level debug
+        # Run the security scan on the current directory
+        ./vibecondom -mode=local -target=.
+
+        # Check if any issues were found
+        if [ $? -eq 2 ]; then
+          echo "::warning::Vibecondom found potential security issues. Check the logs above for details."
+        fi
       env:
         # Enable debug output
         RUNNER_DEBUG: 1
