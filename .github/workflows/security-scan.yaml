@@ -34,7 +34,7 @@ jobs:
         ls -la
         
         # Run the security scan on the current directory
-        ./vibecondom -mode=local -target . -log-level debug
+        ./vibecondom -mode=local -target "./" -log-level debug
 
         # Check if any issues were found
         if [ $? -eq 2 ]; then
