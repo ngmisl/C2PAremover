@@ -30,11 +30,17 @@ jobs:
         # Build the tool
         go build -o vibecondom .
         
-        # Run the security scan
-        ./vibecondom -mode local -target . -exts ".txt,.md,.mdc,.windsurfrules,AGENT.md,AGENTS.md"
+        # Show current directory structure for debugging
+        ls -la
+        
+        # Run the security scan on the repository root
+        ./vibecondom -mode local -target ./ -exts ".txt,.md,.mdc,.windsurfrules,AGENT.md,AGENTS.md" -log-level debug
       env:
-        # Set to true to see debug output
+        # Enable debug output
         RUNNER_DEBUG: 1
+        
+        # Save output to a file
+      working-directory: ${{ github.workspace }}
 
     - name: Upload scan results
       if: always()
